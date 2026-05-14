@@ -1,0 +1,175 @@
+{% extends 'base.html' %}
+{% load ledger_extras %}
+
+{% block title %}BudgetBook | {{ year }}年 医療費控除明細{% endblock %}
+{% block route %}medical_expense_list{% endblock %}
+
+{% block content %}
+  <div class="panel">
+    <div class="panel__body">
+      <div class="toolbar">
+        <div>
+          <h1 class="page-title">{{ year }}年 医療費控除明細</h1>
+          <div class="meta">
+            国税庁「医療費控除の明細書」様式に対応した管理ページです。
+          </div>
+        </div>
+        <div class="button-row">
+          <a href="{% url 'ledger:medical_expense_list' %}?year={{ prev_year }}" class="btn btn--ghost">← {{ prev_year }}年</a>
+          {% if next_year %}
+            <a href="{% url 'ledger:medical_expense_list' %}?year={{ next_year }}" class="btn btn--ghost">{{ next_year }}年 →</a>
+          {% endif %}
+          <a href="{% url 'ledger:medical_expense_create' %}?year={{ year }}" class="btn btn--primary">+ 医療費を追加</a>
+          <a href="{{ csv_url }}" class="btn btn--soft">↓ CSV ダウンロード</a>
+          <a href="{% url 'ledger:settings' %}" class="btn btn--ghost">設定に戻る</a>
+        </div>
+      </div>
+
+      {% if not summary.gross_income_known %}
+        <div class="helper" style="margin-top: 12px; background: var(--c-warn-bg, #fff7e6); padding: 12px; border-radius: 8px;">
+          <strong>⚠ {{ year }} 年の総所得が未登録です。</strong>
+          現在は控除基準額 10 万円ラインで暫定計算しています（総所得 200 万円超の世帯と同等）。
+          総所得 200 万円以下の場合は控除額が変わります。
+          <a href="{% url 'ledger:income_snapshot_list' %}">年次所得スナップショットを登録</a>
+        </div>
+      {% endif %}
+
+      <div class="cards" style="margin-top: 16px;">
+        <div class="card">
+          <div class="card__label">支払合計</div>
+          <div class="card__value">{{ summary.total_paid|yen }}</div>
+        </div>
+        <div class="card">
+          <div class="card__label">補填合計</div>
+          <div class="card__value">{{ summary.total_reimbursement|yen }}</div>
+        </div>
+        <div class="card card--expense">
+          <div class="card__label">差引合計</div>
+          <div class="card__value">{{ summary.net_paid|yen }}</div>
+        </div>
+        <div class="card">
+          <div class="card__label">控除基準額</div>
+          <div class="card__value">{{ summary.threshold|yen }}</div>
+          <div class="meta">
+            {% if summary.gross_income_known %}
+              総所得 {{ summary.gross_income|yen }} × 5% と 10 万円の小さい方
+            {% else %}
+              暫定（10 万円ライン）
+            {% endif %}
+          </div>
+        </div>
+        <div class="card {% if summary.deduction > 0 %}card--income{% endif %}">
+          <div class="card__label">医療費控除額</div>
+          <div class="card__value">{{ summary.deduction|yen }}</div>
+          <div class="meta">
+            {% if summary.deduction > 0 %}
+              申告書 第二表 ⑩医療費控除欄に転記
+            {% else %}
+              控除ラインに到達していません
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      {% if patient_rows %}
+        <h2 class="section-title" style="margin-top: 24px;">受診者別小計</h2>
+        <table class="table">
+          <thead>
+            <tr>
+              <th>受診者</th>
+              <th class="num">件数</th>
+              <th class="num">支払合計</th>
+              <th class="num">補填合計</th>
+              <th class="num">差引</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in patient_rows %}
+              <tr>
+                <td>{{ row.patient }}</td>
+                <td class="num">{{ row.count }}</td>
+                <td class="num">{{ row.paid|yen }}</td>
+                <td class="num">{{ row.reimbursement|yen }}</td>
+                <td class="num">{{ row.net|yen }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+
+        <h2 class="section-title" style="margin-top: 24px;">医療機関別小計</h2>
+        <table class="table">
+          <thead>
+            <tr>
+              <th>医療機関・薬局</th>
+              <th class="num">件数</th>
+              <th class="num">支払合計</th>
+              <th class="num">補填合計</th>
+              <th class="num">差引</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in provider_rows %}
+              <tr>
+                <td>{{ row.provider }}</td>
+                <td class="num">{{ row.count }}</td>
+                <td class="num">{{ row.paid|yen }}</td>
+                <td class="num">{{ row.reimbursement|yen }}</td>
+                <td class="num">{{ row.net|yen }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+
+        <h2 class="section-title" style="margin-top: 24px;">明細</h2>
+        <table class="table">
+          <thead>
+            <tr>
+              <th>支払日</th>
+              <th>受診者</th>
+              <th>医療機関・薬局</th>
+              <th>区分</th>
+              <th class="num">支払額</th>
+              <th class="num">補填額</th>
+              <th class="num">差引</th>
+              <th>取引</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for e in expenses %}
+              <tr>
+                <td>{{ e.paid_date|date:'Y-m-d' }}</td>
+                <td>{{ e.patient }}</td>
+                <td>{{ e.provider }}</td>
+                <td>{{ e.get_category_display }}</td>
+                <td class="num">{{ e.amount|yen }}</td>
+                <td class="num">{{ e.reimbursement|yen }}</td>
+                <td class="num">{{ e.net_amount|yen }}</td>
+                <td>
+                  {% if e.transaction_id %}
+                    <span class="meta">取引 #{{ e.transaction_id }}</span>
+                  {% else %}
+                    <span class="meta">家計簿外</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <a href="{% url 'ledger:medical_expense_update' e.pk %}" class="btn btn--ghost btn--sm">編集</a>
+                  <form method="post" action="{% url 'ledger:medical_expense_delete' e.pk %}" style="display:inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn--danger btn--sm" onclick="return confirm('この医療費明細を削除しますか？')">削除</button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <div class="helper" style="margin-top: 16px;">
+          {{ year }} 年の医療費明細はまだ登録されていません。
+          <br>
+          「+ 医療費を追加」ボタンから登録するか、取引フォームで医療費控除タグのカテゴリを選ぶと自動で詳細入力欄が表示されます。
+        </div>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+
+{% block title %}BudgetBook | ログイン履歴{% endblock %}
+{% block route %}settings{% endblock %}
+
+{% block content %}
+  <div class="toolbar">
+    <div>
+      <h1 class="page-title">ログイン履歴</h1>
+      <div class="meta">過去 {{ days }} 日分の成功・失敗ログ（django-axes が記録）</div>
+    </div>
+    <div class="button-row">
+      <a href="{% url 'ledger:settings' %}" class="btn btn--ghost">← 設定に戻る</a>
+    </div>
+  </div>
+
+  {% if unavailable %}
+    <div class="panel">
+      <div class="panel__body">
+        <em>ログイン履歴を取得できませんでした（axes が無効化されている可能性があります）。</em>
+      </div>
+    </div>
+  {% elif page_obj.paginator.count == 0 %}
+    <div class="panel">
+      <div class="panel__body">
+        <em>表示できる履歴がありません。</em>
+      </div>
+    </div>
+  {% else %}
+    <div class="panel">
+      <div class="panel__body" style="overflow-x:auto;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>日時</th>
+              <th>種別</th>
+              <th>ユーザー</th>
+              <th>IP</th>
+              <th>User-Agent</th>
+              <th>パス</th>
+              <th>失敗数</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in page_obj %}
+              <tr>
+                <td>{{ row.when|date:"Y-m-d H:i:s" }}</td>
+                <td>
+                  {% if row.kind == 'success' %}
+                    <span class="badge badge--ok">成功</span>
+                  {% else %}
+                    <span class="badge badge--error">失敗</span>
+                  {% endif %}
+                </td>
+                <td>{{ row.username }}</td>
+                <td>{{ row.ip }}</td>
+                <td title="{{ row.user_agent }}">{{ row.user_agent }}</td>
+                <td>{{ row.path }}</td>
+                <td>{% if row.failures %}{{ row.failures }}{% else %}-{% endif %}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if page_obj.has_other_pages %}
+        <div class="panel__body button-row">
+          {% if page_obj.has_previous %}
+            <a class="btn btn--ghost" href="?page={{ page_obj.previous_page_number }}">← 前へ</a>
+          {% endif %}
+          <span class="meta">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+          {% if page_obj.has_next %}
+            <a class="btn btn--ghost" href="?page={{ page_obj.next_page_number }}">次へ →</a>
+          {% endif %}
+        </div>
+      {% endif %}
+    </div>
+  {% endif %}
+{% endblock %}

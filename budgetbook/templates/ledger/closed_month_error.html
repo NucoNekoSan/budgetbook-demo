@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+
+{% block title %}BudgetBook | 締め済み月{% endblock %}
+
+{% block content %}
+  <div class="panel">
+    <div class="panel__body">
+      <h1 class="page-title">締め済み月のため変更できません</h1>
+      <div class="helper">{{ message }}</div>
+      <div class="button-row u-mt-16">
+        <a href="{% url 'ledger:dashboard' %}" class="btn btn--ghost">家計簿に戻る</a>
+        <a href="{% url 'ledger:accounting' %}" class="btn btn--primary">締め・照合を確認</a>
+      </div>
+    </div>
+  </div>
+{% endblock %}

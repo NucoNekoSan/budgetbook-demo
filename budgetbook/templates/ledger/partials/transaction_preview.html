@@ -1,0 +1,42 @@
+{% load ledger_extras %}
+{% if has_input %}
+  <div class="preview-box">
+    <div class="preview-box__title">保存後の {{ month_label|date:'Y年n月' }} の見込み</div>
+    <div class="preview-box__rows">
+      <div>
+        <span class="meta">収入</span>
+        <strong class="amount-income tabular-num">{{ new_income|yen }}</strong>
+        {% if new_income != current_income %}
+          <span class="meta">(+{{ amount|yen }})</span>
+        {% endif %}
+      </div>
+      <div>
+        <span class="meta">支出</span>
+        <strong class="amount-expense tabular-num">{{ new_expense|yen }}</strong>
+        {% if new_expense != current_expense %}
+          <span class="meta">(+{{ amount|yen }})</span>
+        {% endif %}
+      </div>
+      <div>
+        <span class="meta">差額</span>
+        <strong class="tabular-num {% if new_net > 0 %}amount-income{% elif new_net < 0 %}amount-expense{% endif %}">
+          {{ new_net|yen }}
+        </strong>
+      </div>
+    </div>
+    {% if duplicates %}
+      <div class="preview-box__warning">
+        ⚠ <strong>重複の可能性</strong>: 同日同額同カテゴリの取引が {{ duplicates|length }} 件あります
+        <ul class="meta">
+          {% for d in duplicates %}
+            <li>{{ d.date|date:'Y-m-d' }} {{ d.account.name }} / {{ d.category.name }} / {{ d.description }} {{ d.amount|yen }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+  </div>
+{% else %}
+  <div class="preview-box preview-box--empty">
+    <span class="meta">金額とカテゴリを入力するとプレビューが表示されます。</span>
+  </div>
+{% endif %}

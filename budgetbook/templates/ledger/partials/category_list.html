@@ -1,0 +1,116 @@
+{% load ledger_extras %}
+<div class="panel">
+  <div class="panel__body">
+    <div class="toolbar">
+      <h2 class="section-title">カテゴリ</h2>
+      <button
+        class="btn btn--ghost"
+        type="button"
+        hx-get="{% url 'ledger:category_create' %}"
+        hx-target="#category-list"
+        hx-swap="innerHTML"
+      >+ 追加</button>
+    </div>
+
+    {% if flash_message %}
+      <div class="flash__message">{{ flash_message }}</div>
+    {% endif %}
+
+    {% if show_category_form or not categories %}
+      {% include 'ledger/partials/category_form.html' with form=category_form form_title='カテゴリを追加' submit_label='追加する' is_new=True %}
+    {% endif %}
+
+    {% if edit_category_pk %}
+      {% include 'ledger/partials/category_form.html' with form=edit_category_form form_title='カテゴリを編集' submit_label='更新する' edit_pk=edit_category_pk is_new=False %}
+    {% endif %}
+
+    {% if categories %}
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>カテゴリ名</th>
+              <th>区分</th>
+              <th>大分類</th>
+              <th>使用状況</th>
+              <th>状態</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for cat in categories %}
+              <tr class="{% if not cat.is_active %}row--inactive{% endif %}">
+                <td data-label="カテゴリ名">
+                  <strong>{{ cat.name }}</strong>
+                  {% if cat.notes %}<div class="meta">{{ cat.notes|truncatechars:40 }}</div>{% endif %}
+                </td>
+                <td data-label="区分">
+                  <span class="chip {% if cat.kind == 'income' %}chip--income{% else %}chip--expense{% endif %}">
+                    {{ cat.get_kind_display }}
+                  </span>
+                </td>
+                <td data-label="大分類">
+                  <span class="chip chip--neutral">{{ cat.get_section_display }}</span>
+                </td>
+                <td data-label="使用状況">
+                  {% if cat.can_delete %}
+                    <span class="chip chip--neutral">未使用</span>
+                    {% if cat.group_count %}
+                      <span class="meta meta--inline">分析G {{ cat.group_count }}</span>
+                    {% else %}
+                      <span class="meta meta--inline">削除可</span>
+                    {% endif %}
+                  {% else %}
+                    <span class="chip chip--neutral">使用中</span>
+                    <span class="meta meta--inline">取引 {{ cat.transaction_count }} / 分析G {{ cat.group_count }}</span>
+                  {% endif %}
+                </td>
+                <td data-label="状態">
+                  {% if cat.is_active %}
+                    <span class="chip chip--income">有効</span>
+                  {% else %}
+                    <span class="chip chip--expense">無効</span>
+                  {% endif %}
+                </td>
+                <td data-label="操作">
+                  <div class="inline-actions">
+                    <button
+                      class="btn btn--soft btn--sm"
+                      type="button"
+                      aria-label="{{ cat.name }} を編集"
+                      hx-get="{% url 'ledger:category_update' cat.pk %}?inline=1"
+                      hx-target="#cat-inline-edit-{{ cat.pk }}"
+                      hx-swap="outerHTML"
+                    >✎ 編集</button>
+                    <button
+                      class="btn btn--soft btn--sm"
+                      type="button"
+                      aria-label="{{ cat.name }} を{% if cat.is_active %}無効化{% else %}有効化{% endif %}"
+                      hx-post="{% url 'ledger:category_toggle' cat.pk %}"
+                      hx-target="#category-list"
+                      hx-swap="innerHTML"
+                    >{% if cat.is_active %}停止{% else %}再開{% endif %}</button>
+                    {% if cat.can_delete %}
+                    <button
+                      class="btn btn--danger btn--sm"
+                      type="button"
+                      aria-label="{{ cat.name }} を削除"
+                      hx-post="{% url 'ledger:category_delete' cat.pk %}"
+                      hx-target="#category-list"
+                      hx-swap="innerHTML"
+                      hx-confirm="「{{ cat.name }}」を完全に削除します。取引で使われていないことを確認しました。よろしいですか？"
+                    >🗑 削除</button>
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+              <tr id="cat-inline-edit-{{ cat.pk }}" class="inline-edit-placeholder"><td colspan="6"></td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% elif not show_category_form %}
+      <div class="empty">カテゴリがまだ登録されていません。「+ 追加」からカテゴリを作成してください。</div>
+    {% endif %}
+  </div>
+</div>

@@ -1,0 +1,128 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+    tags:
+      - "v*"
+  pull_request:
+    branches:
+      - master
+  schedule:
+    # Weekly full production checks. Times are UTC.
+    - cron: "0 21 * * 0"
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Django tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: budgetbook/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r budgetbook/requirements.txt
+
+      - name: Create CI environment
+        run: |
+          cat > budgetbook/.env <<'EOF'
+          SECRET_KEY=ci-secret-key-not-for-production
+          DEBUG=False
+          ALLOWED_HOSTS=127.0.0.1,localhost,testserver
+          CSRF_TRUSTED_ORIGINS=http://127.0.0.1:8010,http://localhost:8010
+          DJANGO_DB_PATH=${{ runner.temp }}/budgetbook-ci.sqlite3
+          SQLITE_BUSY_TIMEOUT_MS=5000
+          SQLITE_JOURNAL_MODE=WAL
+          SQLITE_SYNCHRONOUS=NORMAL
+          SECURE_COOKIES=0
+          TRUST_PROXY_SSL=0
+          ADMIN_URL_PATH=ci-admin/
+          EOF
+
+      - name: Django system checks
+        working-directory: budgetbook
+        run: |
+          python manage.py check
+          python manage.py makemigrations --check
+
+      - name: Run tests
+        working-directory: budgetbook
+        run: python manage.py test ledger
+
+  dependency-audit:
+    name: Dependency audit (pip-audit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install pip-audit
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "pip-audit>=2.8,<3"
+
+      - name: Run pip-audit
+        run: pip-audit --requirement budgetbook/requirements.txt --strict --format columns
+
+  production-checks:
+    name: Production checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Create CI environment
+        run: |
+          cat > budgetbook/.env <<'EOF'
+          SECRET_KEY=ci-secret-key-not-for-production
+          DEBUG=False
+          ALLOWED_HOSTS=127.0.0.1,localhost,testserver
+          CSRF_TRUSTED_ORIGINS=http://127.0.0.1:8010,http://localhost:8010
+          DJANGO_DB_PATH=${{ runner.temp }}/budgetbook-ci.sqlite3
+          SQLITE_BUSY_TIMEOUT_MS=5000
+          SQLITE_JOURNAL_MODE=WAL
+          SQLITE_SYNCHRONOUS=NORMAL
+          SECURE_COOKIES=0
+          TRUST_PROXY_SSL=0
+          ADMIN_URL_PATH=ci-admin/
+          EOF
+
+      - name: Audit Python dependencies
+        run: scripts/audit_dependencies.sh
+
+      - name: Static security scan
+        run: scripts/security_static_scan.sh
+
+      - name: Docker compose config
+        run: docker compose config --quiet
+
+      - name: Docker build
+        run: docker compose build

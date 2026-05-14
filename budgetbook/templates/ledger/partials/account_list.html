@@ -1,0 +1,112 @@
+{% load ledger_extras %}
+<div class="panel">
+  <div class="panel__body">
+    <div class="toolbar">
+      <h2 class="section-title">口座</h2>
+      <button
+        class="btn btn--ghost"
+        type="button"
+        hx-get="{% url 'ledger:account_create' %}"
+        hx-target="#account-list"
+        hx-swap="innerHTML"
+      >+ 追加</button>
+    </div>
+
+    {% if flash_message %}
+      <div class="flash__message">{{ flash_message }}</div>
+    {% endif %}
+
+    {% if show_account_form or not accounts %}
+      {% include 'ledger/partials/account_form.html' with form=account_form action_url=action_url form_title='口座を追加' submit_label='追加する' is_new=True %}
+    {% endif %}
+
+    {% if edit_account_pk %}
+      {% include 'ledger/partials/account_form.html' with form=edit_account_form form_title='口座を編集' submit_label='更新する' edit_pk=edit_account_pk is_new=False %}
+    {% endif %}
+
+    {% if accounts %}
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>口座名</th>
+              <th>初期残高</th>
+              <th>使用状況</th>
+              <th>状態</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for acct in accounts %}
+              <tr class="{% if not acct.is_active %}row--inactive{% endif %}">
+                <td data-label="口座名">
+                  <strong>{{ acct.name }}</strong>
+                  {% if acct.notes %}<div class="meta">{{ acct.notes|truncatechars:40 }}</div>{% endif %}
+                </td>
+                <td data-label="初期残高" class="tabular-num">{{ acct.opening_balance|yen }}</td>
+                <td data-label="使用状況">
+                  {% if acct.can_delete %}
+                    <span class="chip chip--neutral">未使用</span>
+                    <span class="meta meta--inline">削除可</span>
+                  {% else %}
+                    <span class="chip chip--neutral">使用中</span>
+                    <span class="meta meta--inline">取引 {{ acct.transaction_count }} / 振替 {{ acct.transfer_count }}</span>
+                  {% endif %}
+                </td>
+                <td data-label="状態">
+                  {% if acct.is_active %}
+                    <span class="chip chip--income">有効</span>
+                  {% else %}
+                    <span class="chip chip--expense">無効</span>
+                  {% endif %}
+                </td>
+                <td data-label="操作">
+                  <div class="inline-actions">
+                    <button
+                      class="btn btn--soft btn--sm"
+                      type="button"
+                      aria-label="{{ acct.name }} を編集"
+                      hx-get="{% url 'ledger:account_update' acct.pk %}?inline=1"
+                      hx-target="#acct-inline-edit-{{ acct.pk }}"
+                      hx-swap="outerHTML"
+                    >✎ 編集</button>
+                    <button
+                      class="btn btn--soft btn--sm"
+                      type="button"
+                      aria-label="{{ acct.name }} を{% if acct.is_active %}無効化{% else %}有効化{% endif %}"
+                      hx-post="{% url 'ledger:account_toggle' acct.pk %}"
+                      hx-target="#account-list"
+                      hx-swap="innerHTML"
+                    >{% if acct.is_active %}停止{% else %}再開{% endif %}</button>
+                    {% if acct.can_delete %}
+                    <button
+                      class="btn btn--danger btn--sm"
+                      type="button"
+                      aria-label="{{ acct.name }} を削除"
+                      hx-post="{% url 'ledger:account_delete' acct.pk %}"
+                      hx-target="#account-list"
+                      hx-swap="innerHTML"
+                      hx-confirm="「{{ acct.name }}」を完全に削除します。取引や振替が紐づいていないことを確認しました。よろしいですか？"
+                    >🗑 削除</button>
+                    {% else %}
+                    <button
+                      class="btn btn--sm"
+                      type="button"
+                      disabled
+                      aria-label="{{ acct.name }} は取引/振替があるため削除できません"
+                      title="取引/振替が紐づいているため削除できません。先に「停止」で無効化してください。"
+                    >🚫 削除不可</button>
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+              <tr id="acct-inline-edit-{{ acct.pk }}" class="inline-edit-placeholder"><td colspan="5"></td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% elif not show_account_form %}
+      <div class="empty">口座がまだ登録されていません。「+ 追加」から口座を作成してください。</div>
+    {% endif %}
+  </div>
+</div>

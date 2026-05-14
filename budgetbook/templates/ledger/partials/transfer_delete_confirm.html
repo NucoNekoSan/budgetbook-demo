@@ -1,0 +1,33 @@
+{% load ledger_extras %}
+<div class="panel__body">
+  <h2 class="section-title">振替を削除</h2>
+  <p>以下の振替を削除します。取り消しはできません。</p>
+
+  <div class="list-item delete-preview">
+    <div>
+      <div><strong>{{ transfer.description }}</strong></div>
+      <div class="meta">
+        {{ transfer.date|date:'Y-m-d' }} /
+        {{ transfer.from_account.name }} → {{ transfer.to_account.name }}
+      </div>
+    </div>
+    <strong>{{ transfer.amount|yen }}</strong>
+  </div>
+
+  <form
+    hx-post="{{ delete_action }}"
+    hx-target="#form-panel"
+    hx-swap="innerHTML"
+    class="button-row"
+  >
+    <input type="hidden" name="month" value="{{ month_param }}">
+    <button class="btn btn--danger" type="submit">削除する</button>
+    <button
+      class="btn btn--ghost"
+      type="button"
+      hx-get="{{ cancel_url }}"
+      hx-target="#form-panel"
+      hx-swap="innerHTML"
+    >戻る</button>
+  </form>
+</div>

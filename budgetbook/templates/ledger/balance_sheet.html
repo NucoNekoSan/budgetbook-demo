@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+{% load ledger_extras %}
+
+{% block title %}BudgetBook | 資産（B/S）{% endblock %}
+{% block route %}balance_sheet{% endblock %}
+
+{% block content %}
+  <div class="annual-layout">
+    <div class="toolbar">
+      <div>
+        <h1 class="page-title">資産（個人 B/S）</h1>
+        <div class="meta">{{ m_end|date:'Y年n月j日' }}時点。資産 − 負債 = 正味財産。</div>
+      </div>
+      <div class="button-row">
+        <a href="{% url 'ledger:loan_strategy' %}" class="btn btn--soft">📊 返済戦略</a>
+        <a href="{% url 'ledger:balance_sheet' %}?month={{ prev_month_param }}" class="btn btn--ghost">← 前月</a>
+        {% if next_month_param %}
+          <a href="{% url 'ledger:balance_sheet' %}?month={{ next_month_param }}" class="btn btn--ghost">次月 →</a>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="summary-hero">
+      <div class="hero-card" data-tone="{% if bs.net_worth >= 0 %}positive{% else %}negative{% endif %}">
+        <div class="hero-card__label">正味財産</div>
+        <div class="hero-card__value tabular-num">{{ bs.net_worth|yen }}</div>
+        <div class="hero-card__caption">資産 {{ bs.asset_total|yen }} − 負債 {{ bs.liability_total|yen }}</div>
+      </div>
+      <div class="cards">
+        <div class="card card--income">
+          <div class="card__label">資産合計</div>
+          <div class="card__value tabular-num">{{ bs.asset_total|yen }}</div>
+        </div>
+        <div class="card card--expense">
+          <div class="card__label">負債合計</div>
+          <div class="card__value tabular-num">{{ bs.liability_total|yen }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel__body">
+        <h2 class="section-title">資産</h2>
+        {% if bs.assets %}
+          <ul class="list">
+            {% for item in bs.assets %}
+              <li class="list-item">
+                <span><strong>{{ item.account.name }}</strong></span>
+                <strong class="tabular-num {% if item.balance < 0 %}amount-expense{% endif %}">{{ item.balance|yen }}</strong>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="empty">資産口座がまだ登録されていません。</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel__body">
+        <h2 class="section-title">負債</h2>
+        <div class="meta">
+          クレジットカード未払いやローン残などの将来支払義務。年利を設定するとリボの実コストが見えます。
+          {% if bs.monthly_interest_total %}
+            <strong>月間想定利息合計: {{ bs.monthly_interest_total|yen }}（年 {{ bs.annual_interest_total|yen }}）</strong>
+          {% endif %}
+        </div>
+        {% if bs.liabilities %}
+          <ul class="list">
+            {% for item in bs.liabilities %}
+              <li class="list-item">
+                <div>
+                  <div><strong>{{ item.account.name }}</strong></div>
+                  {% if item.profile %}
+                    <div class="meta">
+                      {{ item.profile.get_method_display }}
+                      {% if item.profile.annual_rate_bp %} / 年利 {{ item.profile.annual_rate_pct }}%{% endif %}
+                      {% if item.profile.monthly_payment %} / 月次返済目安 {{ item.profile.monthly_payment|yen }}{% endif %}
+                      {% if item.profile.payment_day %} / 引落 {{ item.profile.payment_day }}日{% endif %}
+                      {% if item.profile.source_account %} / 引落元 {{ item.profile.source_account.name }}{% endif %}
+                    </div>
+                    {% if item.profile.payoff_date %}
+                      <div class="meta">完済予定日（手入力）: {{ item.profile.payoff_date|date:'Y-m-d' }}</div>
+                    {% endif %}
+                    {% if item.monthly_interest_est %}
+                      <div class="meta amount-expense">想定利息: 月 {{ item.monthly_interest_est|yen }} / 年 {{ item.annual_interest_est|yen }}</div>
+                    {% endif %}
+                    {% if item.projection %}
+                      {% if item.projection.warning == 'payment_below_interest' %}
+                        <div class="meta amount-expense">⚠ 月次返済額が利息に届かず元金が減りません</div>
+                      {% elif item.projection.warning == 'max_months_exceeded' %}
+                        <div class="meta amount-expense">⚠ 完済まで 50 年超 (シミュレーション打切り)</div>
+                      {% elif item.projection.months_remaining %}
+                        <div class="meta">
+                          自動完済予測: あと {{ item.projection.months_remaining }} ヶ月
+                          {% if item.projection.payoff_date %}({{ item.projection.payoff_date|date:'Y年n月' }}){% endif %}
+                          {% if item.projection.total_interest %} / 想定総利息 {{ item.projection.total_interest|yen }}{% endif %}
+                        </div>
+                      {% endif %}
+                    {% endif %}
+                  {% else %}
+                    <div class="meta">利率未設定。設定→口座編集で年利を入力できます。</div>
+                  {% endif %}
+                </div>
+                <strong class="tabular-num amount-expense">{{ item.owed|yen }}</strong>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="empty">負債口座は登録されていません。設定からカードやローンを「会計区分: 負債」で追加できます。</div>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if tax_summary %}
+    <div class="panel">
+      <div class="panel__body">
+        <h2 class="section-title">{{ year_start|date:'Y年' }} 税控除タグ別 累計</h2>
+        <div class="meta">{{ year_start|date:'Y-m-d' }} 〜 {{ m_end|date:'Y-m-d' }}。確定申告の準備資料に。</div>
+        <div class="table-wrap u-mt-16">
+          <table>
+            <thead>
+              <tr><th>タグ</th><th>金額</th></tr>
+            </thead>
+            <tbody>
+              {% for r in tax_summary %}
+                <tr>
+                  <td><strong>{{ r.label }}</strong></td>
+                  <td class="tabular-num">{{ r.total|yen }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+{% endblock %}

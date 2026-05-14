@@ -1,0 +1,49 @@
+{% load static %}
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>BudgetBook | ログイン</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}?v={{ STATIC_VERSION }}">
+    <meta name="color-scheme" content="light dark">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232563eb'/%3E%3Ctext x='50%25' y='62%25' font-size='44' text-anchor='middle' fill='white' font-family='-apple-system,Segoe UI,sans-serif' font-weight='800'%3EB%3C/text%3E%3C/svg%3E">
+    <script nonce="{{ csp_nonce }}" src="{% static 'js/theme_toggle.js' %}"></script>
+  </head>
+  <body>
+    <div class="login-wrapper">
+      <div class="login-card panel">
+        <div class="panel__body">
+          <div class="login-brand">BudgetBook</div>
+
+          {% if form.errors %}
+            <ul class="errors">
+              <li>ユーザー名またはパスワードが正しくありません。</li>
+            </ul>
+          {% endif %}
+
+          <form method="post" class="form-grid">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ next }}">
+
+            <div class="field">
+              <label for="id_username">ユーザー名</label>
+              <input type="text" name="username" id="id_username" class="form-input"
+                     autocomplete="username" autofocus required>
+            </div>
+
+            <div class="field">
+              <label for="id_password">パスワード</label>
+              <input type="password" name="password" id="id_password" class="form-input"
+                     autocomplete="current-password" required>
+            </div>
+
+            <div class="form-grid__actions">
+              <button type="submit" class="btn btn--primary u-w-full">ログイン</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

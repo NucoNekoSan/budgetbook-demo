@@ -1,0 +1,47 @@
+<div id="medical-fields"
+     {% if not show %}data-hidden="true"{% endif %}
+     hx-target="this"
+     hx-swap="outerHTML">
+  {% if show %}
+    <div class="form-grid__section" style="background: #f6f8fb; padding: 12px; border-radius: 8px; margin-top: 8px;">
+      <div class="meta" style="margin-bottom: 8px;">
+        <strong>医療費控除の詳細</strong>
+        — このカテゴリは医療費控除タグです。確定申告用に詳細を入力してください。
+      </div>
+
+      <div class="field">
+        <label for="id_medical_patient">受診者</label>
+        <input type="text" name="medical_patient" id="id_medical_patient" class="form-input"
+               placeholder="例: 本人 / 配偶者 / 子A"
+               autocomplete="off" value="{{ medical_patient|default:'' }}">
+      </div>
+
+      <div class="field">
+        <label for="id_medical_provider">医療機関・薬局名</label>
+        <input type="text" name="medical_provider" id="id_medical_provider" class="form-input"
+               placeholder="例: 〇〇クリニック"
+               autocomplete="off" value="{{ medical_provider|default:'' }}">
+      </div>
+
+      <div class="field">
+        <label for="id_medical_category">区分</label>
+        <select name="medical_category" id="id_medical_category" class="form-input">
+          {% for value, label in category_choices %}
+            <option value="{{ value }}"
+              {% if value == medical_category|default:'treatment' %}selected{% endif %}>
+              {{ label }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="id_medical_reimbursement">補填額</label>
+        <input type="number" name="medical_reimbursement" id="id_medical_reimbursement"
+               class="form-input" step="1" min="0" inputmode="numeric" autocomplete="off"
+               value="{{ medical_reimbursement|default:'0' }}">
+        <div class="meta">保険金・出産育児一時金等。なければ 0。</div>
+      </div>
+    </div>
+  {% endif %}
+</div>

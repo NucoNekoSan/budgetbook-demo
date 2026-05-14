@@ -1,0 +1,30 @@
+{% load ledger_extras %}
+<div class="panel__body">
+  <h2 class="section-title">取引を削除</h2>
+  <p>以下の取引を削除します。取り消しはできません。</p>
+
+  <div class="list-item delete-preview">
+    <div>
+      <div><strong>{{ transaction.description }}</strong></div>
+      <div class="meta">{{ transaction.date|date:'Y-m-d' }} / {{ transaction.account.name }} / {{ transaction.category.name }}</div>
+    </div>
+    <strong>{{ transaction.amount|yen }}</strong>
+  </div>
+
+  <form
+    hx-post="{{ delete_action }}"
+    hx-target="#form-panel"
+    hx-swap="innerHTML"
+    class="button-row"
+  >
+    <input type="hidden" name="month" value="{{ month_param }}">
+    <button class="btn btn--danger" type="submit">削除する</button>
+    <button
+      class="btn btn--ghost"
+      type="button"
+      hx-get="{{ cancel_url }}"
+      hx-target="#form-panel"
+      hx-swap="innerHTML"
+    >戻る</button>
+  </form>
+</div>

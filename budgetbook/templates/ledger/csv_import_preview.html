@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+
+{% block title %}BudgetBook | CSV インポート（プレビュー）{% endblock %}
+{% block route %}dashboard{% endblock %}
+
+{% block content %}
+  <div class="toolbar">
+    <div>
+      <h1 class="page-title">CSV インポート（プレビュー）</h1>
+      <div class="meta">{{ filename }}</div>
+    </div>
+    <div class="button-row">
+      <a href="{% url 'ledger:transaction_import' %}" class="btn btn--ghost">← やり直す</a>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel__body">
+      <strong>取込可能: {{ importable_count }} 件</strong>
+      ／ 重複警告: {{ duplicate_count }} 件
+      ／ エラー: {{ error_count }} 件
+      ／ 振替スキップ: {{ skip_count }} 件
+    </div>
+  </div>
+
+  <form method="post" class="panel">
+    {% csrf_token %}
+    <input type="hidden" name="confirm" value="1">
+    <input type="hidden" name="filename" value="{{ filename }}">
+    <textarea name="csv_text" hidden>{{ csv_text }}</textarea>
+
+    <div class="panel__body" style="overflow-x:auto;">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>取込</th>
+            <th>行</th>
+            <th>状態</th>
+            <th>日付</th>
+            <th>種別</th>
+            <th>口座</th>
+            <th>カテゴリ</th>
+            <th>金額</th>
+            <th>摘要</th>
+            <th>メモ</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for pr in preview %}
+            <tr class="csv-row csv-row--{{ pr.status }}">
+              <td>
+                {% if pr.is_importable %}
+                  <input type="checkbox" name="selected_lines" value="{{ pr.line_no }}" checked>
+                {% else %}
+                  -
+                {% endif %}
+              </td>
+              <td>{{ pr.line_no }}</td>
+              <td>
+                {% if pr.status == 'ok' %}<span class="badge badge--ok">OK</span>
+                {% elif pr.status == 'warning_duplicate' %}<span class="badge badge--warn">重複候補</span>
+                {% elif pr.status == 'skip_transfer' %}<span class="badge badge--muted">振替スキップ</span>
+                {% else %}<span class="badge badge--error">{{ pr.status }}</span>
+                {% endif %}
+                {% if pr.csv_unsafe %}<span class="badge badge--warn" title="先頭文字が =+-@ などの危険な値です">CSV注意</span>{% endif %}
+                {% for e in pr.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
+              </td>
+              {% for cell in pr.raw %}
+                <td>{{ cell }}</td>
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if importable_count > 0 %}
+      <div class="panel__body button-row">
+        <button type="submit" class="btn btn--primary">選択した {{ importable_count }} 件を取り込む</button>
+        <a href="{% url 'ledger:transaction_import' %}" class="btn btn--ghost">キャンセル</a>
+      </div>
+    {% else %}
+      <div class="panel__body">
+        <em>取込可能な行がありません。CSV を修正して再アップロードしてください。</em>
+      </div>
+    {% endif %}
+  </form>
+{% endblock %}

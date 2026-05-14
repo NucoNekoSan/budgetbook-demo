@@ -1,0 +1,269 @@
+{% extends 'base.html' %}
+{% load ledger_extras %}
+
+{% block title %}BudgetBook | 締め・照合{% endblock %}
+{% block route %}accounting{% endblock %}
+
+{% block content %}
+  <div class="annual-layout">
+    <div class="toolbar">
+      <div>
+        <h1 class="page-title">締め・照合</h1>
+        <div class="meta">月次締めと実口座残高の照合で、家計簿の数字を確定・検証します。</div>
+      </div>
+      <a href="{% url 'ledger:dashboard' %}" class="btn btn--ghost">家計簿に戻る</a>
+    </div>
+
+    {% if flash_message %}
+      <div class="flash__message">{{ flash_message }}</div>
+    {% endif %}
+    {% if error_message %}
+      <div class="errors">{{ error_message }}</div>
+    {% endif %}
+
+    {# ===== ヘルプパネル ===== #}
+    <details class="panel">
+      <summary class="panel__body section-title">この画面の使い方（クリックで開閉）</summary>
+      <div class="panel__body">
+        <h3 class="section-title">月次締め (Monthly Closing) とは</h3>
+        <p>月末時点の収入・支出・残高をスナップショットとして<strong>保存</strong>する操作です。締めた月は次の意味を持ちます:</p>
+        <ul>
+          <li>その月の取引・振替の<strong>追加・編集・削除がロック</strong>されます（誤操作防止）</li>
+          <li>「ある時点の家計の確定値」として帳簿が固定されます</li>
+          <li>後から取引を変えると <strong>drift（差異）</strong> として警告が出ます（不正検知）</li>
+        </ul>
+
+        <h3 class="section-title">推奨フロー（毎月の運用）</h3>
+        <ol>
+          <li><strong>月初</strong>: 前月のすべての取引・振替を入力し終える（クレカ明細・銀行明細などを照合）</li>
+          <li><strong>口座残高照合</strong>: 各口座の月末残高を実残高（通帳・アプリ表示）と照合し、差額を確認</li>
+          <li><strong>月次締め</strong>: 「対象月」を前月に指定して『対象月を締める』</li>
+          <li>翌月以降に過去取引を訂正すると drift として表示 → 必要なら<strong>再計算</strong>か<strong>取消して再締め</strong></li>
+        </ol>
+
+        <h3 class="section-title">誤って締めた / 取消したい場合</h3>
+        <ul>
+          <li>各締め行の<strong>「取消」</strong>ボタンで物理削除可能（監査ログには残ります）</li>
+          <li>取消後は対象月の取引が再度編集可能になります</li>
+          <li>取消・再計算の操作はすべて <code>/admin/ledger/auditlog/</code> に記録されます</li>
+        </ul>
+
+        <h3 class="section-title">口座残高照合 (Reconciliation) とは</h3>
+        <p>各口座の<strong>帳簿上の残高</strong>と、銀行アプリ等で見た<strong>実際の残高</strong>を突き合わせる作業です。差額があれば取引の入力漏れ・重複の可能性を示します。</p>
+        <ul>
+          <li>毎月末の照合を推奨。締め前に行うと preflight で警告が消えます</li>
+          <li>差額が出ても無理に 0 にしない（記録を残し、後日原因調査）</li>
+          <li>誤登録した照合は「取消」ボタンで削除可能</li>
+        </ul>
+      </div>
+    </details>
+
+    <div class="panel">
+      <div class="panel__body">
+        <h2 class="section-title">月次締め</h2>
+        <form method="post" action="{% url 'ledger:monthly_closing_create' %}" class="form-grid">
+          {% csrf_token %}
+          {% for field in closing_form %}
+            <div class="field">
+              <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+              {{ field }}
+              {% if field.errors %}
+                <ul class="errors">{% for error in field.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+              {% endif %}
+            </div>
+          {% endfor %}
+          {% if closing_form.non_field_errors %}
+            <ul class="errors">{% for error in closing_form.non_field_errors %}<li>{{ error }}</li>{% endfor %}</ul>
+          {% endif %}
+          <div class="button-row form-grid__actions">
+            <button type="submit" class="btn btn--primary">対象月を締める</button>
+          </div>
+        </form>
+
+        <div class="preflight-box {% if closing_preflight.has_warnings %}preflight-box--warning{% else %}preflight-box--ok{% endif %}">
+          <h3 class="preflight-box__title">{{ closing_preflight.target_month|date:'Y年n月' }} 締め前チェック</h3>
+          <div class="meta">
+            月末日: {{ closing_preflight.closing_day|date:'Y-m-d' }} /
+            通常取引 {{ closing_preflight.transaction_count }}件 /
+            振替 {{ closing_preflight.transfer_count }}件 /
+            有効口座 {{ closing_preflight.active_account_count }}件
+          </div>
+          <ul class="preflight-list">
+            <li>
+              {% if closing_preflight.is_closed %}
+                <span class="status-pill status-pill--warning">確認要</span> この月は既に締め済みです。
+              {% else %}
+                <span class="status-pill status-pill--ok">OK</span> この月は未締めです。
+              {% endif %}
+            </li>
+            <li>
+              締め後に保存される見込み:
+              収入 {{ closing_preflight.snapshot.income|yen }} /
+              支出 {{ closing_preflight.snapshot.expense|yen }} /
+              当月収支 {{ closing_preflight.snapshot.net|yen }} /
+              月末残高 {{ closing_preflight.snapshot.closing_balance|yen }}
+            </li>
+            <li>
+              {% if closing_preflight.unreconciled_accounts %}
+                <span class="status-pill status-pill--warning">確認要</span>
+                {{ closing_preflight.closing_day|date:'Y-m-d' }} の照合が未登録の口座:
+                {% for account in closing_preflight.unreconciled_accounts %}
+                  {{ account.name }}{% if not forloop.last %} / {% endif %}
+                {% endfor %}
+              {% else %}
+                <span class="status-pill status-pill--ok">OK</span> 有効口座は月末日で照合済みです。
+              {% endif %}
+            </li>
+            <li>
+              {% if closing_preflight.reconciliation_differences %}
+                <span class="status-pill status-pill--warning">確認要</span> 月末照合に差額があります:
+                {% for item in closing_preflight.reconciliation_differences %}
+                  {{ item.account.name }} {{ item.difference|yen }}{% if not forloop.last %} / {% endif %}
+                {% endfor %}
+              {% else %}
+                <span class="status-pill status-pill--ok">OK</span> 登録済みの月末照合に差額はありません。
+              {% endif %}
+            </li>
+          </ul>
+          <div class="meta">実運用へ反映する前は、バックアップ取得と会計整合性チェックを別途実行してください。</div>
+        </div>
+
+        <div class="table-wrap table-wrap--spaced table-wrap--responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>対象月</th>
+                <th>収入</th>
+                <th>支出</th>
+                <th>当月収支</th>
+                <th>月末残高</th>
+                <th>整合性</th>
+                <th>締め日時</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for closing in closings %}
+                <tr>
+                  <td data-label="対象月">{{ closing.month|date:'Y-m' }}</td>
+                  <td data-label="収入" class="amount-income tabular-num">{{ closing.income|yen }}</td>
+                  <td data-label="支出" class="amount-expense tabular-num">{{ closing.expense|yen }}</td>
+                  <td data-label="当月収支" class="tabular-num {% if closing.net < 0 %}amount-expense{% else %}amount-income{% endif %}">{{ closing.net|yen }}</td>
+                  <td data-label="月末残高" class="tabular-num">{{ closing.closing_balance|yen }}</td>
+                  <td data-label="整合性">
+                    {% if closing.has_drift %}
+                      <div class="errors">現在の帳簿と差異があります。</div>
+                      <div class="meta">
+                        {% if closing.total_drift.income %}収入差 {{ closing.total_drift.income|yen }} {% endif %}
+                        {% if closing.total_drift.expense %}支出差 {{ closing.total_drift.expense|yen }} {% endif %}
+                        {% if closing.total_drift.net %}収支差 {{ closing.total_drift.net|yen }} {% endif %}
+                        {% if closing.total_drift.closing_balance %}月末残高差 {{ closing.total_drift.closing_balance|yen }}{% endif %}
+                      </div>
+                      {% if closing.account_drift %}
+                        <div class="meta">
+                          口座差:
+                          {% for item in closing.account_drift %}
+                            {{ item.name }} {{ item.difference|yen }}{% if not forloop.last %} / {% endif %}
+                          {% endfor %}
+                        </div>
+                      {% endif %}
+                    {% else %}
+                      <span class="amount-income">一致</span>
+                    {% endif %}
+                  </td>
+                  <td data-label="締め日時" class="meta">{{ closing.closed_at|date:'Y-m-d H:i' }}</td>
+                  <td data-label="操作">
+                    <div class="inline-actions">
+                      <button type="button" class="btn btn--soft btn--sm"
+                        aria-label="{{ closing.month|date:'Y-m' }} の月次締めを再計算"
+                        hx-post="{% url 'ledger:monthly_closing_resnapshot' closing.pk %}"
+                        hx-target="body"
+                        hx-swap="innerHTML"
+                        hx-confirm="{{ closing.month|date:'Y-m' }} の締めを現在の帳簿で再計算します。よろしいですか？">
+                        🔄 再計算
+                      </button>
+                      <button type="button" class="btn btn--danger btn--sm"
+                        aria-label="{{ closing.month|date:'Y-m' }} の月次締めを取消"
+                        hx-post="{% url 'ledger:monthly_closing_delete' closing.pk %}"
+                        hx-target="body"
+                        hx-swap="innerHTML"
+                        hx-confirm="{{ closing.month|date:'Y-m' }} の月次締めを取消します。対象月の取引が再編集可能になります。よろしいですか？">
+                        🗑 取消
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="8" class="empty">締め済み月はまだありません。</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel__body">
+        <h2 class="section-title">口座残高照合</h2>
+        <form method="post" action="{% url 'ledger:reconciliation_create' %}" class="form-grid">
+          {% csrf_token %}
+          {% for field in reconciliation_form %}
+            <div class="field">
+              <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+              {{ field }}
+              {% if field.errors %}
+                <ul class="errors">{% for error in field.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+              {% endif %}
+            </div>
+          {% endfor %}
+          {% if reconciliation_form.non_field_errors %}
+            <ul class="errors">{% for error in reconciliation_form.non_field_errors %}<li>{{ error }}</li>{% endfor %}</ul>
+          {% endif %}
+          <div class="button-row form-grid__actions">
+            <button type="submit" class="btn btn--primary">照合を登録</button>
+          </div>
+        </form>
+
+        <div class="table-wrap table-wrap--spaced table-wrap--responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>照合日</th>
+                <th>口座</th>
+                <th>帳簿残高</th>
+                <th>実残高</th>
+                <th>差額</th>
+                <th>メモ</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in reconciliations %}
+                <tr>
+                  <td data-label="照合日">{{ item.reconciled_on|date:'Y-m-d' }}</td>
+                  <td data-label="口座">{{ item.account.name }}</td>
+                  <td data-label="帳簿残高" class="tabular-num">{{ item.book_balance|yen }}</td>
+                  <td data-label="実残高" class="tabular-num">{{ item.actual_balance|yen }}</td>
+                  <td data-label="差額" class="tabular-num {% if item.difference == 0 %}amount-income{% else %}amount-expense{% endif %}">{{ item.difference|yen }}</td>
+                  <td data-label="メモ" class="meta">{{ item.notes|default:'-' }}</td>
+                  <td data-label="操作">
+                    <button type="button" class="btn btn--danger btn--sm"
+                      aria-label="{{ item.reconciled_on|date:'Y-m-d' }} {{ item.account.name }} の照合を取消"
+                      hx-post="{% url 'ledger:reconciliation_delete' item.pk %}"
+                      hx-target="body"
+                      hx-swap="innerHTML"
+                      hx-confirm="{{ item.account.name }} の {{ item.reconciled_on|date:'Y-m-d' }} 照合を取消します。よろしいですか？">
+                      🗑 取消
+                    </button>
+                  </td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="7" class="empty">照合履歴はまだありません。</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

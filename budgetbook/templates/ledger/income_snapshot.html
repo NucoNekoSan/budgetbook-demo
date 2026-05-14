@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+{% load ledger_extras %}
+
+{% block title %}BudgetBook | 年次所得スナップショット{% endblock %}
+{% block route %}income_snapshot_list{% endblock %}
+
+{% block content %}
+  <div class="panel">
+    <div class="panel__body">
+      <div class="toolbar">
+        <div>
+          <h1 class="page-title">年次所得スナップショット</h1>
+          <div class="meta">
+            医療費控除の計算で使う「総所得金額」を年単位で登録します。
+            源泉徴収票の「給与所得控除後の金額」欄を入力してください。
+          </div>
+        </div>
+        <div class="button-row">
+          <a href="{% url 'ledger:settings' %}" class="btn btn--ghost">設定に戻る</a>
+        </div>
+      </div>
+
+      <form method="post" action="{% url 'ledger:income_snapshot_save' %}" class="form-grid" style="margin-top: 16px;">
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+          <div class="form-error">
+            {{ form.non_field_errors }}
+          </div>
+        {% endif %}
+
+        <div class="field">
+          <label for="{{ form.year.id_for_label }}">対象年</label>
+          {{ form.year }}
+          {{ form.year.errors }}
+        </div>
+
+        <div class="field">
+          <label for="{{ form.gross_income.id_for_label }}">総所得金額</label>
+          {{ form.gross_income }}
+          <div class="meta">{{ form.gross_income.help_text }}</div>
+          {{ form.gross_income.errors }}
+        </div>
+
+        <div class="field">
+          <label for="{{ form.notes.id_for_label }}">メモ</label>
+          {{ form.notes }}
+          {{ form.notes.errors }}
+        </div>
+
+        <div class="button-row form-grid__actions">
+          <button type="submit" class="btn btn--primary">登録 / 更新</button>
+        </div>
+      </form>
+
+      {% if snapshots %}
+        <h2 class="section-title" style="margin-top: 24px;">登録済みスナップショット</h2>
+        <table class="table">
+          <thead>
+            <tr>
+              <th>対象年</th>
+              <th class="num">総所得金額</th>
+              <th class="num">5% ライン</th>
+              <th>メモ</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in snapshots %}
+              <tr>
+                <td>{{ s.year }} 年</td>
+                <td class="num">{{ s.gross_income|yen }}</td>
+                <td class="num">{% widthratio s.gross_income 100 5 %}</td>
+                <td>{{ s.notes|default:'-' }}</td>
+                <td>
+                  <form method="post" action="{% url 'ledger:income_snapshot_delete' s.pk %}" style="display:inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn--danger btn--sm" onclick="return confirm('{{ s.year }} 年のスナップショットを削除しますか？')">削除</button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <div class="helper" style="margin-top: 16px;">
+          まだスナップショットが登録されていません。上のフォームから登録してください。
+        </div>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

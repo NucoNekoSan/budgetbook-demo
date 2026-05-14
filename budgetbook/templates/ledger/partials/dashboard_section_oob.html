@@ -1,0 +1,9 @@
+<tr id="{{ row_id }}" class="inline-edit-placeholder"><td colspan="6"></td></tr>
+
+<div id="flash" hx-swap-oob="innerHTML">
+  <div class="flash__message">{{ flash_message }}</div>
+</div>
+
+<div id="dashboard-content" hx-swap-oob="innerHTML">
+  {% include 'ledger/partials/dashboard_content.html' %}
+</div>

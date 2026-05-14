@@ -1,0 +1,198 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load ledger_extras %}
+
+{% block title %}BudgetBook | 支出構成{% endblock %}
+{% block route %}expense_breakdown{% endblock %}
+{% block extra_js %}<script nonce="{{ csp_nonce }}" src="{% static 'js/expense_chart.js' %}?v=20260502-income-ratio-retry" defer></script>{% endblock %}
+
+{% block content %}
+  <div class="annual-layout">
+
+    {# ===== 月間セクション ===== #}
+    <div class="toolbar">
+      <div>
+        <h1 class="page-title">支出構成</h1>
+        <div class="meta">カテゴリ別の支出割合と、収入に対する支出比率を確認できます。</div>
+      </div>
+    </div>
+
+    {# ===== 収入に対する支出比率(母数=月間収入) ===== #}
+    <div class="panel">
+      <div class="panel__body">
+        <div class="toolbar">
+          <h2 class="section-title">{{ target_month|date:"Y年n月" }} 収入に対する支出比率</h2>
+        </div>
+        <div class="meta">母数: 月間収入 {{ monthly_income|yen }}</div>
+
+        {% if not has_income %}
+          <div class="empty">この月は収入が記録されていないため、収入比率は計算できません。</div>
+        {% else %}
+          {% if is_over_spent %}
+            <div class="helper u-helper-overspent">
+              ⚠ 支出が収入を超えています。超過額 {{ overspent_amount|yen }}（収入比 100% 超過）。
+            </div>
+          {% endif %}
+          <div class="chart-container chart-container--pie">
+            <canvas id="income-ratio-pie" role="img" aria-label="収入に対する支出比率の円グラフ。詳細な内訳は下のテーブルで確認できます。"></canvas>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>項目</th><th>金額</th><th>収入比</th></tr>
+              </thead>
+              <tbody>
+                {% for r in income_ratio_rows %}
+                  <tr>
+                    <td><strong>{{ r.label }}</strong>{% if r.kind == 'group' %} <span class="chip">グループ</span>{% endif %}</td>
+                    <td class="amount-expense">{{ r.total|yen }}</td>
+                    <td>{{ r.pct }}%</td>
+                  </tr>
+                {% endfor %}
+                {% if not is_over_spent and remainder > 0 %}
+                  <tr>
+                    <td><strong>残額</strong></td>
+                    <td>{{ remainder|yen }}</td>
+                    <td>{{ remainder_pct }}%</td>
+                  </tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    {# ===== 大分類 (Section) サマリー ===== #}
+    {% if section_rows %}
+    <div class="panel">
+      <div class="panel__body">
+        <h2 class="section-title">{{ target_month|date:"Y年n月" }} 大分類サマリー</h2>
+        <div class="meta">食品・日用品 / 住居 / 交通 などの会計大分類で月間支出を俯瞰します。</div>
+        <div class="table-wrap u-mt-16">
+          <table>
+            <thead>
+              <tr><th>大分類</th><th>金額</th><th>割合</th></tr>
+            </thead>
+            <tbody>
+              {% for r in section_rows %}
+                <tr>
+                  <td><strong>{{ r.label }}</strong></td>
+                  <td class="amount-expense tabular-num">{{ r.total|yen }}</td>
+                  <td class="tabular-num">{{ r.pct }}%</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    {# ===== 月間支出構成(母数=支出合計) ===== #}
+    <div class="panel">
+      <div class="panel__body">
+        <div class="toolbar">
+          <h2 class="section-title">{{ target_month|date:"Y年n月" }} 月間支出構成（支出合計を母数）</h2>
+          <div class="button-row">
+            <a href="{% url 'ledger:expense_breakdown' %}?month={{ prev_month_param }}&year={{ year }}" class="btn btn--ghost">&larr; 前月</a>
+            {% if next_month_param %}
+              <a href="{% url 'ledger:expense_breakdown' %}?month={{ next_month_param }}&year={{ year }}" class="btn btn--ghost">次月 &rarr;</a>
+            {% endif %}
+          </div>
+        </div>
+
+        {% if monthly_total > 0 %}
+          <div class="card card--expense u-mb-16">
+            <div class="card__label">合計支出</div>
+            <div class="card__value">{{ monthly_total|yen }}</div>
+          </div>
+          <div class="chart-container chart-container--pie">
+            <canvas id="monthly-pie" role="img" aria-label="{{ target_month|date:'Y年n月' }}のカテゴリ別支出構成円グラフ。合計 {{ monthly_total|yen }}。詳細は下のテーブルで確認できます。"></canvas>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>カテゴリ</th><th>金額</th><th>割合</th></tr>
+              </thead>
+              <tbody>
+                {% for r in monthly_rows %}
+                  <tr>
+                    <td>
+                      <strong>{{ r.label }}</strong>
+                      {% if r.kind == 'group' %} <span class="chip">グループ</span>{% endif %}
+                    </td>
+                    <td class="amount-expense">{{ r.total|yen }}</td>
+                    <td>{{ r.pct }}%</td>
+                  </tr>
+                  {% if r.kind == 'group' %}
+                    {% for m in r.members %}
+                      <tr>
+                        <td class="u-indent-cell"><span class="meta">└ {{ m.category__name }}</span></td>
+                        <td class="meta">{{ m.total|yen }}</td>
+                        <td></td>
+                      </tr>
+                    {% endfor %}
+                  {% endif %}
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="empty">{{ target_month|date:"Y年n月" }}の支出データがありません。</div>
+        {% endif %}
+      </div>
+    </div>
+
+    {# ===== 年間セクション ===== #}
+    <div class="panel">
+      <div class="panel__body">
+        <div class="toolbar">
+          <h2 class="section-title">{{ year }}年 年間支出構成（支出合計を母数）</h2>
+          <div class="button-row">
+            <a href="{% url 'ledger:expense_breakdown' %}?year={{ prev_year }}&month={{ month_param }}" class="btn btn--ghost">&larr; 前年</a>
+            {% if next_year %}
+              <a href="{% url 'ledger:expense_breakdown' %}?year={{ next_year }}&month={{ month_param }}" class="btn btn--ghost">次年 &rarr;</a>
+            {% endif %}
+          </div>
+        </div>
+
+        {% if yearly_total > 0 %}
+          <div class="card card--expense u-mb-16">
+            <div class="card__label">合計支出</div>
+            <div class="card__value">{{ yearly_total|yen }}</div>
+          </div>
+          <div class="chart-container chart-container--pie">
+            <canvas id="yearly-pie" role="img" aria-label="{{ year }}年の年間支出カテゴリ構成円グラフ。合計 {{ yearly_total|yen }}。詳細は下のテーブルで確認できます。"></canvas>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>カテゴリ</th><th>金額</th><th>割合</th></tr>
+              </thead>
+              <tbody>
+                {% for r in yearly_rows %}
+                  <tr>
+                    <td>
+                      <strong>{{ r.label }}</strong>
+                      {% if r.kind == 'group' %} <span class="chip">グループ</span>{% endif %}
+                    </td>
+                    <td class="amount-expense">{{ r.total|yen }}</td>
+                    <td>{{ r.pct }}%</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="empty">{{ year }}年の支出データがありません。</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {# ===== Chart.js データ ===== #}
+  {{ monthly_rows|json_script:"monthly-pie-data" }}
+  {{ yearly_rows|json_script:"yearly-pie-data" }}
+  {{ income_ratio_chart|json_script:"income-ratio-pie-data" }}
+{% endblock %}

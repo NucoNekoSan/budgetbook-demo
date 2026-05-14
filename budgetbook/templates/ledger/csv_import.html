@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+
+{% block title %}BudgetBook | CSV インポート{% endblock %}
+{% block route %}dashboard{% endblock %}
+
+{% block content %}
+  <div class="toolbar">
+    <div>
+      <h1 class="page-title">CSV インポート</h1>
+      <div class="meta">エクスポートと同じ書式の CSV から取引を取り込みます。</div>
+    </div>
+    <div class="button-row">
+      <a href="{% url 'ledger:dashboard' %}" class="btn btn--ghost">← 家計簿に戻る</a>
+      <a href="{% url 'ledger:transaction_export' %}" class="btn btn--ghost">テンプレート CSV (今月)</a>
+    </div>
+  </div>
+
+  <details class="panel" open>
+    <summary class="panel__body section-title">対応フォーマット</summary>
+    <div class="panel__body">
+      <ul>
+        <li>ヘッダ: <code>日付, 種別, 口座, カテゴリ, 金額, 摘要, メモ</code></li>
+        <li>種別は <strong>収入 / 支出</strong>。振替は今回は取込せずスキップします</li>
+        <li>口座名・カテゴリ名は<strong>完全一致</strong>のみ（自動作成しません）</li>
+        <li>文字コードは UTF-8（BOM 可）または Shift_JIS を自動判定</li>
+        <li>上限: <strong>1000 行 / 1 MiB</strong></li>
+        <li>締め済み月の取引は取込できません</li>
+      </ul>
+    </div>
+  </details>
+
+  <form method="post" enctype="multipart/form-data" class="panel">
+    {% csrf_token %}
+    <div class="panel__body">
+      <div class="form-field">
+        <label for="{{ form.csv_file.id_for_label }}" class="form-label">{{ form.csv_file.label }}</label>
+        {{ form.csv_file }}
+        {% if form.csv_file.help_text %}<div class="form-help">{{ form.csv_file.help_text }}</div>{% endif %}
+        {% if form.csv_file.errors %}
+          <div class="form-error">
+            {% for e in form.csv_file.errors %}<div>{{ e }}</div>{% endfor %}
+          </div>
+        {% endif %}
+      </div>
+      <div class="button-row">
+        <button type="submit" class="btn btn--primary">プレビュー</button>
+      </div>
+    </div>
+  </form>
+{% endblock %}

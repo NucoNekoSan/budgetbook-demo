@@ -1,0 +1,73 @@
+from django.urls import path
+
+from . import views
+
+app_name = 'ledger'
+
+urlpatterns = [
+    path('', views.dashboard, name='dashboard'),
+    path('healthz', views.healthz, name='healthz'),
+    path('metrics', views.metrics, name='metrics'),
+    path('settings/login-history/', views.login_history, name='login_history'),
+    path('manifest.webmanifest', views.pwa_manifest, name='pwa_manifest'),
+    path('sw.js', views.pwa_service_worker, name='pwa_service_worker'),
+    path('offline', views.pwa_offline, name='pwa_offline'),
+    path('categories/options/', views.category_options, name='category_options'),
+    path('transactions/export/', views.transaction_export, name='transaction_export'),
+    path('transactions/import/', views.transaction_import, name='transaction_import'),
+    path('transactions/preview/', views.transaction_preview, name='transaction_preview'),
+    path('transactions/new/', views.transaction_create, name='transaction_create'),
+    path('transactions/<int:pk>/edit/', views.transaction_update, name='transaction_update'),
+    path('transactions/<int:pk>/delete/', views.transaction_delete, name='transaction_delete'),
+    path('transactions/<int:pk>/inline-edit/', views.transaction_inline_update, name='transaction_inline_update'),
+    path('transactions/<int:pk>/inline-cancel/', views.transaction_inline_cancel, name='transaction_inline_cancel'),
+
+    path('transfers/new/', views.transfer_create, name='transfer_create'),
+    path('transfers/<int:pk>/edit/', views.transfer_update, name='transfer_update'),
+    path('transfers/<int:pk>/delete/', views.transfer_delete, name='transfer_delete'),
+    path('transfers/<int:pk>/inline-edit/', views.transfer_inline_update, name='transfer_inline_update'),
+    path('transfers/<int:pk>/inline-cancel/', views.transfer_inline_cancel, name='transfer_inline_cancel'),
+
+    path('annual/', views.annual, name='annual'),
+    path('balance-sheet/', views.balance_sheet_view, name='balance_sheet'),
+    path('loan-strategy/', views.loan_strategy_view, name='loan_strategy'),
+    path('budgets/', views.budget_edit, name='budget_edit'),
+    path('sections/', views.sections_bulk_edit, name='sections_bulk_edit'),
+    path('expense-breakdown/', views.expense_breakdown, name='expense_breakdown'),
+    path('reports/tax-deductions/', views.tax_deductions, name='tax_deductions'),
+    path('reports/tax-deductions.csv', views.tax_deductions_csv, name='tax_deductions_csv'),
+    path('reports/tax-deductions/v2/', views.tax_deductions_v2, name='tax_deductions_v2'),
+    path('reports/tax-deductions/v2.csv', views.tax_deductions_v2_csv, name='tax_deductions_v2_csv'),
+
+    path('medical-expenses/', views.medical_expense_list, name='medical_expense_list'),
+    path('medical-expenses/new/', views.medical_expense_create, name='medical_expense_create'),
+    path('medical-expenses/<int:pk>/edit/', views.medical_expense_update, name='medical_expense_update'),
+    path('medical-expenses/<int:pk>/delete/', views.medical_expense_delete, name='medical_expense_delete'),
+    path('medical-expenses.csv', views.medical_expense_csv, name='medical_expense_csv'),
+    path('transactions/medical-fields/', views.transaction_medical_fields, name='transaction_medical_fields'),
+    path('settings/income-snapshots/', views.income_snapshot_list, name='income_snapshot_list'),
+    path('settings/income-snapshots/save/', views.income_snapshot_save, name='income_snapshot_save'),
+    path('settings/income-snapshots/<int:pk>/delete/', views.income_snapshot_delete, name='income_snapshot_delete'),
+
+    path('insurance-premiums/', views.insurance_premium_list, name='insurance_premium_list'),
+    path('insurance-premiums/new/', views.insurance_premium_create, name='insurance_premium_create'),
+    path('insurance-premiums/<int:pk>/edit/', views.insurance_premium_update, name='insurance_premium_update'),
+    path('insurance-premiums/<int:pk>/delete/', views.insurance_premium_delete, name='insurance_premium_delete'),
+    path('insurance-premiums.csv', views.insurance_premium_csv, name='insurance_premium_csv'),
+    path('accounting/', views.accounting, name='accounting'),
+    path('accounting/closings/new/', views.monthly_closing_create, name='monthly_closing_create'),
+    path('accounting/closings/<int:pk>/delete/', views.monthly_closing_delete, name='monthly_closing_delete'),
+    path('accounting/closings/<int:pk>/resnapshot/', views.monthly_closing_resnapshot, name='monthly_closing_resnapshot'),
+    path('accounting/reconciliations/new/', views.reconciliation_create, name='reconciliation_create'),
+    path('accounting/reconciliations/<int:pk>/delete/', views.reconciliation_delete, name='reconciliation_delete'),
+
+    path('settings/', views.settings_page, name='settings'),
+    path('settings/accounts/new/', views.account_create, name='account_create'),
+    path('settings/accounts/<int:pk>/edit/', views.account_update, name='account_update'),
+    path('settings/accounts/<int:pk>/toggle/', views.account_toggle, name='account_toggle'),
+    path('settings/accounts/<int:pk>/delete/', views.account_delete, name='account_delete'),
+    path('settings/categories/new/', views.category_create, name='category_create'),
+    path('settings/categories/<int:pk>/edit/', views.category_update, name='category_update'),
+    path('settings/categories/<int:pk>/toggle/', views.category_toggle, name='category_toggle'),
+    path('settings/categories/<int:pk>/delete/', views.category_delete, name='category_delete'),
+]
