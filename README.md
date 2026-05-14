@@ -57,7 +57,7 @@
 ### 起動
 
 ```bash
-git clone https://github.com/YOURNAME/budgetbook-demo.git
+git clone https://github.com/NucoNekoSan/budgetbook-demo.git
 cd budgetbook-demo
 cp budgetbook/.env.example budgetbook/.env
 # .env を開いて SECRET_KEY を任意のランダム文字列に変更してください
