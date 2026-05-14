@@ -1,0 +1,31 @@
+# 秘密・実データ・ローカル成果物はイメージに含めない
+**/.env
+**/.env.*
+!**/.env.example
+**/db.sqlite3
+**/db-*.sqlite3
+**/backup/
+**/staticfiles/
+**/.venv/
+**/venv/
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+
+# VCS / エディタ / ローカル設定
+.git/
+.gitignore
+.gitattributes
+.claude/
+.idea/
+.vscode/
+.DS_Store
+
+# CI / docs（イメージには不要）
+docs/
+README.md
+CLAUDE.md
+Dockerfile
+docker-compose.yml
+.dockerignore

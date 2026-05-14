@@ -1,0 +1,11 @@
+[Unit]
+Description=BudgetBook SQLite backup
+Wants=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/budgetbook
+Environment=PROJECT_DIR=/opt/budgetbook
+Environment=RETENTION_DAYS=30
+ExecStart=/opt/budgetbook/scripts/backup_budgetbook.sh

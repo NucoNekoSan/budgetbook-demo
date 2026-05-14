@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+
+# Virtual environment
+.venv/
+
+# Environment variables (secrets)
+.env
+
+# Database
+*.sqlite3
+data/
+
+# Static files (collected)
+staticfiles/
+budgetbook/staticfiles/
+
+# IDE
+.idea/
+
+# Backup
+backup/
+budgetbook/backup/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Claude Code (harness) ローカル設定 — BudgetBook 本体とは無関係
+.claude/

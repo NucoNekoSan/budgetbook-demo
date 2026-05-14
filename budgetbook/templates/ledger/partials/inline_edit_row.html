@@ -1,0 +1,50 @@
+<tr id="{{ row_id }}" class="inline-edit-row">
+  <td colspan="6">
+    <div class="inline-edit-form">
+      <div class="inline-edit-form__title">
+        {% if form_mode == 'transfer' %}振替を編集{% else %}取引を編集{% endif %}
+      </div>
+      <form
+        hx-post="{{ form_action }}"
+        hx-target="#{{ row_id }}"
+        hx-swap="outerHTML show:#transaction-list-panel:top"
+        class="form-grid"
+      >
+        <input type="hidden" name="month" value="{{ month_param }}">
+        <input type="hidden" name="page" value="{{ page }}">
+        {% if filter_q %}<input type="hidden" name="filter_q" value="{{ filter_q }}">{% endif %}
+        {% if filter_account %}<input type="hidden" name="filter_account" value="{{ filter_account }}">{% endif %}
+        {% if filter_category %}<input type="hidden" name="filter_category" value="{{ filter_category }}">{% endif %}
+
+        {% for field in form %}
+          <div class="field">
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.errors %}
+              <ul class="errors">
+                {% for error in field.errors %}<li>{{ error }}</li>{% endfor %}
+              </ul>
+            {% endif %}
+          </div>
+        {% endfor %}
+
+        {% if form.non_field_errors %}
+          <ul class="errors">
+            {% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}
+          </ul>
+        {% endif %}
+
+        <div class="button-row form-grid__actions">
+          <button class="btn btn--primary" type="submit">更新する</button>
+          <button
+            class="btn btn--ghost"
+            type="button"
+            hx-get="{{ cancel_action }}"
+            hx-target="#{{ row_id }}"
+            hx-swap="outerHTML"
+          >キャンセル</button>
+        </div>
+      </form>
+    </div>
+  </td>
+</tr>

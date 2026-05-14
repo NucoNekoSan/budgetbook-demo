@@ -1,0 +1,167 @@
+{% extends 'base.html' %}
+{% load ledger_extras %}
+
+{% block title %}BudgetBook | 返済戦略{% endblock %}
+{% block route %}balance_sheet{% endblock %}
+
+{% block content %}
+  <div class="annual-layout">
+    <div class="toolbar">
+      <div>
+        <h1 class="page-title">返済戦略シミュレーター</h1>
+        <div class="meta">登録済みの負債と利率から、雪崩法／雪だるま法／繰上返済の効果を試算します。</div>
+      </div>
+      <a href="{% url 'ledger:balance_sheet' %}" class="btn btn--ghost">← 資産（B/S）に戻る</a>
+    </div>
+
+    {% if not base.states %}
+      <div class="empty">
+        <div class="empty__title">負債口座がまだ登録されていません</div>
+        <div class="empty__hint">設定で「会計区分: 負債」の口座を作成すると試算できます。</div>
+      </div>
+    {% else %}
+
+    <details class="panel">
+      <summary class="panel__body section-title">使い方と用語の説明（クリックで開閉）</summary>
+      <div class="panel__body">
+        <h3 class="section-title">雪崩法 (Avalanche)</h3>
+        <p>毎月の<strong>余剰金（繰上返済額）を一番金利の高い負債から優先して投下</strong>する方法。数学的に総利息が最少になる戦略。リボのように高金利が複数ある状況で最も効きます。</p>
+
+        <h3 class="section-title">雪だるま法 (Snowball)</h3>
+        <p><strong>残高の小さい負債から完済</strong>させていく方法。総利息は雪崩法より多くなりますが、<strong>「1 件減った」という達成感</strong>が継続のモチベーションになる効果があります。</p>
+
+        <h3 class="section-title">繰上返済額（月次 extra）</h3>
+        <p>最低支払額に加えて<strong>毎月追加で投下できる金額</strong>。家計の余剰やボーナスから捻出した分を入れて試算してください。</p>
+
+        <h3 class="section-title">試算の前提・限界</h3>
+        <ul>
+          <li>残高は現状の口座 opening_balance（登録時残高）を起点とします。日々の取引による残高変動は反映されません</li>
+          <li>金利は単利相当の月利＝年利/12 で計算（実際のリボは複利＋日割）</li>
+          <li>最低支払額は LoanProfile の「月次返済額（目安）」、未設定なら残高の 3% で代替</li>
+          <li>シミュレーション最大期間: 50 年</li>
+          <li>本機能は<strong>家計改善のための参考値</strong>です。実際の返済計画は契約書と照合してください</li>
+        </ul>
+      </div>
+    </details>
+
+    {# 現状（繰上なし） #}
+    <div class="panel">
+      <div class="panel__body">
+        <h2 class="section-title">現状の返済（最低支払のみ、繰上 0 円）</h2>
+        <div class="cards">
+          <div class="card">
+            <div class="card__label">月次最低支払合計</div>
+            <div class="card__value tabular-num">{{ base.monthly_minimum_total|yen }}</div>
+          </div>
+          <div class="card card--expense">
+            <div class="card__label">完済までの月数（雪崩法）</div>
+            <div class="card__value tabular-num">{{ base.avalanche.months_to_payoff }} ヶ月（{{ base.avalanche.years }} 年）</div>
+          </div>
+          <div class="card card--expense">
+            <div class="card__label">支払利息合計（雪崩法）</div>
+            <div class="card__value tabular-num">{{ base.avalanche.total_interest|yen }}</div>
+          </div>
+        </div>
+
+        <div class="table-wrap u-mt-16">
+          <table class="data-table">
+            <thead>
+              <tr><th>戦略</th><th>完済月数</th><th>支払利息合計</th><th>月次合計支払</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td data-label="戦略"><strong>雪崩法</strong>（高金利優先）</td>
+                <td data-label="完済月数" class="tabular-num">{{ base.avalanche.months_to_payoff }} ヶ月</td>
+                <td data-label="支払利息合計" class="amount-expense tabular-num">{{ base.avalanche.total_interest|yen }}</td>
+                <td data-label="月次合計支払" class="tabular-num">{{ base.avalanche.monthly_total_payment|yen }}</td>
+              </tr>
+              <tr>
+                <td data-label="戦略"><strong>雪だるま法</strong>（小残高優先）</td>
+                <td data-label="完済月数" class="tabular-num">{{ base.snowball.months_to_payoff }} ヶ月</td>
+                <td data-label="支払利息合計" class="amount-expense tabular-num">{{ base.snowball.total_interest|yen }}</td>
+                <td data-label="月次合計支払" class="tabular-num">{{ base.snowball.monthly_total_payment|yen }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        {% if base.savings > 0 %}
+          <div class="meta u-mt-16">雪崩法は雪だるま法より <strong>{{ base.savings|yen }}</strong> 利息を節約できます。</div>
+        {% endif %}
+      </div>
+    </div>
+
+    {# 繰上返済シミュレーター #}
+    <div class="panel">
+      <div class="panel__body">
+        <h2 class="section-title">繰上返済シミュレーター</h2>
+        <form method="get" class="form-grid">
+          <div class="field">
+            <label for="id_extra">月次繰上返済額（円）</label>
+            <input type="number" id="id_extra" name="extra" min="0" step="1000"
+                   value="{{ monthly_extra }}" class="form-input"
+                   placeholder="例: 10000">
+            <div class="meta">最低支払に加えて毎月この額を高金利優先で投下する想定。</div>
+          </div>
+          <div class="button-row">
+            <button type="submit" class="btn btn--primary">試算する</button>
+            {% if monthly_extra %}
+              <a href="{% url 'ledger:loan_strategy' %}" class="btn btn--soft">クリア</a>
+            {% endif %}
+          </div>
+        </form>
+
+        {% if boosted %}
+          <h3 class="section-title u-mt-16">月 {{ monthly_extra|yen }} 繰上返済した場合</h3>
+          <div class="cards">
+            <div class="card card--income">
+              <div class="card__label">完済までの月数（雪崩法）</div>
+              <div class="card__value tabular-num">{{ boosted.avalanche.months_to_payoff }} ヶ月（{{ boosted.avalanche.years }} 年）</div>
+            </div>
+            <div class="card card--income">
+              <div class="card__label">支払利息合計（雪崩法）</div>
+              <div class="card__value tabular-num">{{ boosted.avalanche.total_interest|yen }}</div>
+            </div>
+          </div>
+          <div class="meta u-mt-16">
+            繰上なしと比較して
+            <strong>{{ base.avalanche.months_to_payoff|sub:boosted.avalanche.months_to_payoff }} ヶ月短縮</strong>、
+            利息は <strong>{{ base.avalanche.total_interest|sub:boosted.avalanche.total_interest|yen }}</strong> 削減。
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    {# 各負債の優先度 #}
+    <div class="panel">
+      <div class="panel__body">
+        <h2 class="section-title">負債別の優先順位（雪崩法）</h2>
+        <div class="meta">高金利の順に優先返済すべき口座。リボ手数料の節約効果が最大化されます。</div>
+        <div class="table-wrap u-mt-16">
+          <table class="data-table">
+            <thead>
+              <tr><th>順位</th><th>口座</th><th>残債</th><th>年利</th><th>月次最低支払</th><th>累計支払利息（雪崩法）</th></tr>
+            </thead>
+            <tbody>
+              {% for s in base.states %}
+                {% with av_loan=base.avalanche.per_loan|get_item:s.name %}
+                <tr>
+                  <td data-label="順位">{{ forloop.counter }}</td>
+                  <td data-label="口座"><strong>{{ s.name }}</strong></td>
+                  <td data-label="残債" class="tabular-num">{{ s.owed|yen }}</td>
+                  <td data-label="年利" class="tabular-num">{{ s.annual_rate_bp|div:100 }}%</td>
+                  <td data-label="月次最低支払" class="tabular-num">{{ s.monthly_minimum|yen }}</td>
+                  <td data-label="累計支払利息" class="amount-expense tabular-num">
+                    {% if av_loan %}{{ av_loan.interest_paid|yen }}{% else %}-{% endif %}
+                  </td>
+                </tr>
+                {% endwith %}
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    {% endif %}
+  </div>
+{% endblock %}

@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+{% load ledger_extras %}
+
+{% block title %}BudgetBook | 大分類の一括編集{% endblock %}
+{% block route %}settings{% endblock %}
+
+{% block content %}
+  <div class="settings-layout">
+    <div class="toolbar">
+      <div>
+        <h1 class="page-title">大分類の一括編集</h1>
+        <div class="meta">全カテゴリの大分類 (section) と税控除タグをまとめて編集できます。</div>
+      </div>
+      <div class="button-row">
+        <a href="{% url 'ledger:settings' %}" class="btn btn--ghost">← 設定に戻る</a>
+        <a href="{% url 'ledger:dashboard' %}" class="btn btn--ghost">家計簿に戻る</a>
+      </div>
+    </div>
+
+    {% if flash %}<div class="flash__message">{{ flash }}</div>{% endif %}
+
+    <details class="panel">
+      <summary class="panel__body section-title">使い方</summary>
+      <div class="panel__body">
+        <ul>
+          <li>支出カテゴリを<strong>大分類でグルーピング</strong>表示しています。各カテゴリのドロップダウンから所属を変更できます</li>
+          <li>「税控除タグ」は確定申告時の集計用（医療費控除・寄附金控除など）。該当しないカテゴリは<strong>対象外</strong>のままで OK</li>
+          <li>変更内容は<strong>「保存する」ボタンで一括反映</strong>されます。途中の変更は反映されません</li>
+          <li>収入カテゴリは大分類の影響を受けないので、参考表示のみ</li>
+        </ul>
+      </div>
+    </details>
+
+    <form method="post" class="panel">
+      {% csrf_token %}
+      <div class="panel__body">
+        <h2 class="section-title">支出カテゴリ</h2>
+
+        {% for group in grouped_rows %}
+          <h3 class="section-title section-title--tight u-mt-16">
+            <span class="chip chip--neutral">{{ group.label }}</span>
+            <span class="meta">{{ group.categories|length }} 件</span>
+          </h3>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>カテゴリ名</th>
+                  <th>大分類</th>
+                  <th>税控除タグ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for cat in group.categories %}
+                  <tr>
+                    <td data-label="カテゴリ名"><strong>{{ cat.name }}</strong></td>
+                    <td data-label="大分類">
+                      <select name="section_{{ cat.pk }}" class="form-input">
+                        {% for v, label in section_choices %}
+                          <option value="{{ v }}" {% if cat.section == v %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                      </select>
+                    </td>
+                    <td data-label="税控除タグ">
+                      <select name="tax_tag_{{ cat.pk }}" class="form-input">
+                        {% for v, label in tax_choices %}
+                          <option value="{{ v }}" {% if cat.tax_tag == v %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                      </select>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% endfor %}
+
+        {% if income_categories %}
+          <h2 class="section-title u-mt-16">収入カテゴリ（参考）</h2>
+          <div class="meta">収入カテゴリは大分類の集計に影響しません。税控除タグのみ編集可能です。</div>
+          <div class="table-wrap u-mt-16">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>カテゴリ名</th>
+                  <th>税控除タグ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for cat in income_categories %}
+                  <tr>
+                    <td data-label="カテゴリ名"><strong>{{ cat.name }}</strong></td>
+                    <td data-label="税控除タグ">
+                      <select name="tax_tag_{{ cat.pk }}" class="form-input">
+                        {% for v, label in tax_choices %}
+                          <option value="{{ v }}" {% if cat.tax_tag == v %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                      </select>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% endif %}
+
+        <div class="button-row form-grid__actions u-mt-16">
+          <button type="submit" class="btn btn--primary">保存する</button>
+          <a href="{% url 'ledger:settings' %}" class="btn btn--soft">キャンセル</a>
+        </div>
+      </div>
+    </form>
+  </div>
+{% endblock %}

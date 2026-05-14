@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}BudgetBook | 家計簿{% endblock %}
+{% block route %}dashboard{% endblock %}
+{% block extra_js %}<script nonce="{{ csp_nonce }}" src="{% static 'js/dashboard_chart.js' %}" defer></script>{% endblock %}
+
+{% block content %}
+  <div id="flash" class="flash" aria-live="polite" aria-atomic="true"></div>
+  <div class="layout">
+    <section id="dashboard-content">
+      {% include 'ledger/partials/dashboard_content.html' %}
+    </section>
+
+    <aside id="form-panel" class="panel">
+      {% include 'ledger/partials/transaction_form_panel.html' %}
+    </aside>
+  </div>
+{% endblock %}

@@ -1,0 +1,70 @@
+{% load django_htmx %}
+{% load static %}
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}BudgetBook{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}?v={{ STATIC_VERSION }}">
+    <meta name="color-scheme" content="light dark">
+    <meta name="theme-color" content="#2563eb">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232563eb'/%3E%3Ctext x='50%25' y='62%25' font-size='44' text-anchor='middle' fill='white' font-family='-apple-system,Segoe UI,sans-serif' font-weight='800'%3EB%3C/text%3E%3C/svg%3E">
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="BudgetBook">
+    <script nonce="{{ csp_nonce }}" src="{% static 'js/theme_toggle.js' %}" defer></script>
+    {% htmx_script %}
+    <script nonce="{{ csp_nonce }}" src="{% static 'js/htmx_config.js' %}" defer></script>
+    <script nonce="{{ csp_nonce }}" src="{% static 'vendor/chart.umd.min.js' %}" defer></script>
+    <script nonce="{{ csp_nonce }}" src="{% static 'js/budget_chart.js' %}" defer></script>
+    <script nonce="{{ csp_nonce }}" src="{% static 'js/progress_bars.js' %}" defer></script>
+    <script nonce="{{ csp_nonce }}" src="{% static 'js/keyboard_shortcuts.js' %}" defer></script>
+    <script nonce="{{ csp_nonce }}" src="{% static 'js/pwa_register.js' %}" defer></script>
+    {% block extra_js %}{% endblock %}
+  </head>
+  <body hx-headers='{"x-csrftoken": "{{ csrf_token }}"}' data-route="{% block route %}{% endblock %}">
+    <a href="#main" class="skip-link">本文へスキップ</a>
+    {% if DEMO_MODE %}
+      <div class="demo-banner" role="status" aria-live="polite">
+        🧪 これはデモデータです。実在の家計ではありません。
+        {% if not DEMO_ALLOW_WRITES %}
+          書き込み操作は無効化されています（読み取り専用）。
+        {% endif %}
+        <a href="https://github.com/" target="_blank" rel="noopener noreferrer">→ GitHub でセルフホストする</a>
+      </div>
+    {% endif %}
+    <header class="site-header">
+      <div class="site-header__inner">
+        <a href="{% url 'ledger:dashboard' %}" class="brand">BudgetBook</a>
+        <nav class="site-nav" aria-label="主要ナビゲーション">
+          <a href="{% url 'ledger:dashboard' %}" class="site-nav__link" data-route-link="dashboard">家計簿</a>
+          <a href="{% url 'ledger:annual' %}" class="site-nav__link" data-route-link="annual">年間</a>
+          <a href="{% url 'ledger:expense_breakdown' %}" class="site-nav__link" data-route-link="expense_breakdown">支出構成</a>
+          <a href="{% url 'ledger:balance_sheet' %}" class="site-nav__link" data-route-link="balance_sheet">資産</a>
+          <a href="{% url 'ledger:accounting' %}" class="site-nav__link" data-route-link="accounting">締め・照合</a>
+          <a href="{% url 'ledger:settings' %}" class="site-nav__link" data-route-link="settings">設定</a>
+          <button type="button" class="site-nav__theme" data-theme-toggle aria-label="テーマ切替">🖥 自動</button>
+          <form method="post" action="{% url 'logout' %}" class="site-nav__logout">
+            {% csrf_token %}
+            <button type="submit" class="site-nav__link site-nav__logout-btn">
+              {{ user.username }} : ログアウト
+            </button>
+          </form>
+        </nav>
+      </div>
+    </header>
+    <main class="container" id="main" tabindex="-1">
+      {% if messages %}
+        <ul class="flash-messages" role="status">
+          {% for message in messages %}
+            <li class="flash-messages__item flash-messages__item--{{ message.tags|default:'info' }}">{{ message }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+      {% block content %}{% endblock %}
+    </main>
+  </body>
+</html>

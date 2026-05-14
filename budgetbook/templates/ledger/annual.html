@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load ledger_extras %}
+
+{% block title %}BudgetBook | {{ year }}年 年間サマリー{% endblock %}
+{% block route %}annual{% endblock %}
+{% block extra_js %}<script nonce="{{ csp_nonce }}" src="{% static 'js/annual_chart.js' %}" defer></script>{% endblock %}
+
+{% block content %}
+  <div class="annual-layout">
+    <div class="toolbar">
+      <div>
+        <h1 class="page-title">{{ year }}年 年間サマリー</h1>
+        <div class="meta">各月をクリックすると月別ダッシュボードへ移動します。</div>
+      </div>
+      <div class="button-row">
+        <a href="{% url 'ledger:annual' %}?year={{ prev_year }}" class="btn btn--ghost">← 前年</a>
+        {% if next_year %}
+          <a href="{% url 'ledger:annual' %}?year={{ next_year }}" class="btn btn--ghost">次年 →</a>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="cards">
+      <div class="card card--income">
+        <div class="card__label">年間収入</div>
+        <div class="card__value">{{ total_income|yen }}</div>
+      </div>
+      <div class="card card--expense">
+        <div class="card__label">年間支出</div>
+        <div class="card__value">{{ total_expense|yen }}</div>
+      </div>
+      <div class="card {% if total_net > 0 %}card--net-positive{% elif total_net < 0 %}card--net-negative{% else %}card--net{% endif %}">
+        <div class="card__label">年間差額</div>
+        <div class="card__value">{{ total_net|yen }}</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel__body">
+        <h2 class="section-title">月別内訳</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>月</th>
+                <th>収入</th>
+                <th>支出</th>
+                <th>差額</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for m in months %}
+                <tr>
+                  <td>
+                    <a href="{% url 'ledger:dashboard' %}?month={{ m.month_param }}" class="annual-month-link">{{ m.label }}</a>
+                  </td>
+                  <td class="amount-income">{{ m.income|yen }}</td>
+                  <td class="amount-expense">{{ m.expense|yen }}</td>
+                  <td class="{% if m.net > 0 %}amount-income{% elif m.net < 0 %}amount-expense{% endif %}">
+                    {{ m.net|yen }}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+            <tfoot>
+              <tr class="annual-total-row">
+                <td><strong>合計</strong></td>
+                <td class="amount-income"><strong>{{ total_income|yen }}</strong></td>
+                <td class="amount-expense"><strong>{{ total_expense|yen }}</strong></td>
+                <td class="{% if total_net > 0 %}amount-income{% elif total_net < 0 %}amount-expense{% endif %}">
+                  <strong>{{ total_net|yen }}</strong>
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    {% if annual_section_rows %}
+    <div class="panel">
+      <div class="panel__body">
+        <h2 class="section-title">{{ year }}年 大分類別 年間支出</h2>
+        <div class="meta">家計大分類で 1 年間の支出を俯瞰します。固定費・変動費の傾向把握に。</div>
+        <div class="table-wrap u-mt-16">
+          <table>
+            <thead>
+              <tr><th>大分類</th><th>金額</th><th>割合</th></tr>
+            </thead>
+            <tbody>
+              {% for r in annual_section_rows %}
+                <tr>
+                  <td><strong>{{ r.label }}</strong></td>
+                  <td class="amount-expense tabular-num">{{ r.total|yen }}</td>
+                  <td class="tabular-num">{{ r.pct }}%</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="panel">
+      <div class="panel__body">
+        <h2 class="section-title">年間推移</h2>
+        <figure class="chart-figure">
+          <div class="chart-container">
+            <canvas id="annual-chart" role="img" aria-label="{{ target_year }}年の月別 収入・支出・収支の推移グラフ"></canvas>
+          </div>
+          <figcaption class="sr-only">{{ target_year }}年の月別収入支出グラフ。詳細な数値は上のテーブルで確認できます。</figcaption>
+        </figure>
+        {{ annual_trend|json_script:"annual-trend-data" }}
+      </div>
+    </div>
+  </div>
+{% endblock %}

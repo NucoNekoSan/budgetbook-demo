@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+
+{% block title %}BudgetBook | オフライン{% endblock %}
+{% block route %}offline{% endblock %}
+
+{% block content %}
+  <div class="panel">
+    <div class="panel__body">
+      <h1 class="page-title">オフラインです</h1>
+      <p>ネットワークに接続できていません。電波の良い場所で再読み込みしてください。</p>
+      <p>家計データの入力・編集はオンライン時のみ可能です。</p>
+      <div class="button-row" style="margin-top:16px;">
+        <a href="/" class="btn btn--primary">再読み込み</a>
+      </div>
+    </div>
+  </div>
+{% endblock %}

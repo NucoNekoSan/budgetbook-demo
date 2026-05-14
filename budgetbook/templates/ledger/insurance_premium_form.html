@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+{% load ledger_extras %}
+
+{% block title %}BudgetBook | 保険料控除{% if mode == 'edit' %}編集{% else %}追加{% endif %}{% endblock %}
+{% block route %}insurance_premium_form{% endblock %}
+
+{% block content %}
+  <div class="panel">
+    <div class="panel__body">
+      <h1 class="page-title">保険料控除を{% if mode == 'edit' %}編集{% else %}追加{% endif %}</h1>
+
+      <div class="meta" style="margin-bottom: 12px;">
+        控除証明書（10〜11 月頃に保険会社から到着）を見ながら入力してください。
+        共済（県民共済 / 全労済 / JA 共済等）も区分は控除証明書の記載通りに選択します。
+      </div>
+
+      <form method="post" action="{{ form_action }}" class="form-grid">
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+          <div class="form-error">
+            {{ form.non_field_errors }}
+          </div>
+        {% endif %}
+
+        <div class="field">
+          <label for="{{ form.year.id_for_label }}">対象年</label>
+          {{ form.year }}
+          {{ form.year.errors }}
+        </div>
+
+        <div class="field">
+          <label for="{{ form.category.id_for_label }}">区分</label>
+          {{ form.category }}
+          {{ form.category.errors }}
+        </div>
+
+        <div class="field">
+          <label for="{{ form.contract_type.id_for_label }}">契約区分</label>
+          {{ form.contract_type }}
+          <div class="meta">介護医療保険料は新契約のみ / 地震保険料は契約区分不問</div>
+          {{ form.contract_type.errors }}
+        </div>
+
+        <div class="field">
+          <label for="{{ form.insurer.id_for_label }}">保険会社名</label>
+          {{ form.insurer }}
+          <datalist id="insurance-insurer-suggestions">
+            {% for s in insurer_suggestions %}
+              <option value="{{ s }}"></option>
+            {% endfor %}
+          </datalist>
+          {{ form.insurer.errors }}
+        </div>
+
+        <div class="field">
+          <label for="{{ form.policy_number.id_for_label }}">証券番号</label>
+          {{ form.policy_number }}
+          {{ form.policy_number.errors }}
+        </div>
+
+        <div class="field">
+          <label for="{{ form.annual_amount.id_for_label }}">年間支払保険料</label>
+          {{ form.annual_amount }}
+          <div class="meta">{{ form.annual_amount.help_text }}</div>
+          {{ form.annual_amount.errors }}
+        </div>
+
+        <div class="field">
+          <label class="form-check__label">
+            {{ form.submitted_in_year_end_adjustment }}
+            年末調整で会社に提出済
+          </label>
+          <div class="meta">ON にすると確定申告レポートで除外されます（年調で控除済のため）</div>
+          {{ form.submitted_in_year_end_adjustment.errors }}
+        </div>
+
+        <div class="field">
+          <label for="{{ form.notes.id_for_label }}">メモ</label>
+          {{ form.notes }}
+          {{ form.notes.errors }}
+        </div>
+
+        <div class="button-row form-grid__actions">
+          <button type="submit" class="btn btn--primary">{% if mode == 'edit' %}更新{% else %}登録{% endif %}</button>
+          <a href="{{ cancel_url }}" class="btn btn--ghost">キャンセル</a>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock %}

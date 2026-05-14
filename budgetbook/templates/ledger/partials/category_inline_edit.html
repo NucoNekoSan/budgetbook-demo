@@ -1,0 +1,36 @@
+{# 行直下に挿入されるカテゴリインライン編集フォーム #}
+<tr id="cat-inline-edit-{{ category.pk }}" class="inline-edit-row">
+  <td colspan="6">
+    <form
+      class="form-grid inline-edit-form"
+      hx-post="{% url 'ledger:category_update' category.pk %}?inline=1"
+      hx-target="#cat-inline-edit-{{ category.pk }}"
+      hx-swap="outerHTML"
+    >
+      {% csrf_token %}
+      <div class="inline-edit-form__title">「{{ category.name }}」を編集</div>
+      {% for field in form %}
+        <div class="field">
+          <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+          {% if field.help_text %}<div class="meta">{{ field.help_text }}</div>{% endif %}
+          {% if field.errors %}
+            <ul class="errors">
+              {% for error in field.errors %}<li>{{ error }}</li>{% endfor %}
+            </ul>
+          {% endif %}
+        </div>
+      {% endfor %}
+      <div class="button-row form-grid__actions">
+        <button class="btn btn--primary btn--sm" type="submit">更新する</button>
+        <button
+          class="btn btn--soft btn--sm"
+          type="button"
+          hx-get="{% url 'ledger:category_update' category.pk %}?inline=1&close=1"
+          hx-target="#cat-inline-edit-{{ category.pk }}"
+          hx-swap="outerHTML"
+        >キャンセル</button>
+      </div>
+    </form>
+  </td>
+</tr>

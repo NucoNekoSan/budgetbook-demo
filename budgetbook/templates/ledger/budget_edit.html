@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+{% load ledger_extras %}
+
+{% block title %}BudgetBook | {{ target_month|date:'Y年n月' }} 予算{% endblock %}
+{% block route %}dashboard{% endblock %}
+
+{% block content %}
+  <div class="annual-layout">
+    <div class="toolbar">
+      <div>
+        <h1 class="page-title">{{ target_month|date:'Y年n月' }} の月次予算</h1>
+        <div class="meta">大分類 (section) ごとの月次予算を設定します。空欄で保存すれば未設定（予算なし）。</div>
+      </div>
+      <div class="button-row">
+        <a href="{% url 'ledger:budget_edit' %}?month={{ prev_month_param }}" class="btn btn--ghost">← 前月</a>
+        {% if next_month_param %}
+          <a href="{% url 'ledger:budget_edit' %}?month={{ next_month_param }}" class="btn btn--ghost">次月 →</a>
+        {% endif %}
+        <a href="{% url 'ledger:dashboard' %}?month={{ month_param }}" class="btn btn--ghost">家計簿に戻る</a>
+      </div>
+    </div>
+
+    {% if flash %}<div class="flash__message">{{ flash }}</div>{% endif %}
+
+    <details class="panel">
+      <summary class="panel__body section-title">使い方</summary>
+      <div class="panel__body">
+        <ul>
+          <li>各 <strong>大分類</strong> に月次予算を設定すると、家計簿ダッシュボードに進捗バーが表示されます</li>
+          <li>空欄のままにした大分類は<strong>予算なし</strong>として扱われます（実績だけ集計）</li>
+          <li>「前月から複製」で先月の予算をそのまま今月にコピーできます（金額は後から編集可能）</li>
+          <li>使われていない大分類（実績 0 で予算未設定）はダッシュボードに表示されません</li>
+        </ul>
+      </div>
+    </details>
+
+    {# 予算 vs 実績サマリー #}
+    {% if summary.has_any_budget %}
+    <div class="panel">
+      <div class="panel__body">
+        <h2 class="section-title">{{ target_month|date:'Y年n月' }} 予算進捗（現時点）</h2>
+        <div class="cards">
+          <div class="card">
+            <div class="card__label">予算合計</div>
+            <div class="card__value tabular-num">{{ summary.total_budget|yen }}</div>
+          </div>
+          <div class="card {% if summary.total_pct > 100 %}card--expense{% else %}card--income{% endif %}">
+            <div class="card__label">使用率</div>
+            <div class="card__value tabular-num">{{ summary.total_pct }}%</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    {# 編集フォーム #}
+    <form method="post" class="panel">
+      {% csrf_token %}
+      <input type="hidden" name="month" value="{{ month_param }}">
+      <div class="panel__body">
+        <h2 class="section-title">予算を編集</h2>
+        <div class="meta">大分類ごとに月次の予算額（円）を入力してください。</div>
+
+        <div class="table-wrap u-mt-16">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>大分類</th>
+                <th>予算額</th>
+                <th>前月の予算</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in rows %}
+                <tr>
+                  <td data-label="大分類"><strong>{{ r.label }}</strong></td>
+                  <td data-label="予算額">
+                    <input
+                      type="number"
+                      name="amount_{{ r.section }}"
+                      class="form-input tabular-num"
+                      min="0" step="100"
+                      placeholder="未設定"
+                      value="{% if r.has_budget %}{{ r.amount }}{% endif %}"
+                    >
+                  </td>
+                  <td data-label="前月の予算" class="meta tabular-num">
+                    {% if r.prev_amount %}{{ r.prev_amount|yen }}{% else %}-{% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="button-row form-grid__actions u-mt-16">
+          <button type="submit" name="action" value="save" class="btn btn--primary">保存する</button>
+          {% if has_prev %}
+            <button type="submit" name="action" value="copy_prev" class="btn btn--soft">前月から複製</button>
+          {% endif %}
+        </div>
+      </div>
+    </form>
+  </div>
+{% endblock %}

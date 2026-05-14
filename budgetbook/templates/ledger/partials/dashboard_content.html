@@ -1,0 +1,438 @@
+{% load ledger_extras %}
+<div class="stack">
+  <div class="panel">
+    <div class="panel__body">
+      <div class="toolbar">
+        <div>
+          <h1 class="page-title">{{ target_month|date:'Y年n月' }} の家計</h1>
+          <div class="meta">
+            {% if monthly_closing %}
+              この月は締め済みです。閲覧のみ可能です。
+            {% else %}
+              収支の登録・編集は右側フォームから行えます。
+            {% endif %}
+          </div>
+        </div>
+        <div class="button-row">
+          <a
+            class="btn btn--ghost"
+            href="{% url 'ledger:dashboard' %}?{{ previous_month_query }}"
+            hx-get="{% url 'ledger:dashboard' %}?{{ previous_month_query }}"
+            hx-target="#dashboard-content"
+            hx-swap="innerHTML"
+            hx-push-url="true"
+          >← 前月</a>
+          {% if next_month_query %}
+          <a
+            class="btn btn--ghost"
+            href="{% url 'ledger:dashboard' %}?{{ next_month_query }}"
+            hx-get="{% url 'ledger:dashboard' %}?{{ next_month_query }}"
+            hx-target="#dashboard-content"
+            hx-swap="innerHTML"
+            hx-push-url="true"
+          >次月 →</a>
+          {% endif %}
+        </div>
+      </div>
+
+      {% if not has_accounts or not has_categories %}
+        <div class="helper">
+          先に初期データが必要です。`python manage.py seed_budget_data` を実行するか、管理画面から口座・カテゴリを作成してください。
+        </div>
+      {% endif %}
+      {% if monthly_closing %}
+        <div class="helper">
+          この月は {{ monthly_closing.closed_at|date:'Y-m-d H:i' }} に締め済みです。取引・振替の追加、編集、削除はできません。
+        </div>
+      {% endif %}
+
+      <div class="summary-hero summary-hero--stacked">
+        <div class="hero-card hero-card--compact" data-tone="{% if net > 0 %}positive{% elif net < 0 %}negative{% else %}neutral{% endif %}" aria-label="資産口座の月末残高">
+          <div class="hero-card__label">月末の手元残高（資産口座合計）</div>
+          <div class="hero-card__value tabular-num">{{ closing_balance|yen }}</div>
+          <div class="hero-card__caption">
+            月初繰越 {{ opening_carry|yen }}
+            {% if has_liabilities %}
+              · 負債は <a href="{% url 'ledger:balance_sheet' %}" class="annual-month-link">資産ページ</a> で確認
+            {% endif %}
+          </div>
+        </div>
+        <div class="cards cards--3">
+          <div class="card card--income">
+            <div class="card__label">収入</div>
+            <div class="card__value tabular-num">{{ income|yen }}</div>
+          </div>
+          <div class="card card--expense">
+            <div class="card__label">支出</div>
+            <div class="card__value tabular-num">{{ expense|yen }}</div>
+          </div>
+          <div class="card card--net {% if net > 0 %}card--net-positive{% elif net < 0 %}card--net-negative{% endif %}">
+            <div class="card__label">収支</div>
+            <div class="card__value tabular-num">
+              {% if net > 0 %}+{% endif %}{{ net|yen }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if budget_summary.rows %}
+  <div class="panel">
+    <div class="panel__body">
+      <div class="toolbar">
+        <h2 class="section-title">月次予算進捗</h2>
+        <a href="{% url 'ledger:budget_edit' %}?month={{ month_param }}" class="btn btn--soft btn--sm">予算を編集</a>
+      </div>
+      {% if budget_summary.has_any_budget %}
+        <div class="meta">
+          予算合計 {{ budget_summary.total_budget|yen }} / 使用 {{ budget_summary.total_spent|yen }}
+          ({{ budget_summary.total_pct }}%)
+          {% if budget_summary.over_sections %}
+            <span class="amount-expense">⚠ {{ budget_summary.over_sections }} 大分類が超過中</span>
+          {% endif %}
+        </div>
+      {% else %}
+        <div class="meta">この月の予算はまだ設定されていません。「予算を編集」から作成できます。</div>
+      {% endif %}
+
+      <ul class="list u-mt-16">
+        {% for r in budget_summary.rows %}
+          <li class="list-item budget-row">
+            <div class="budget-row__head">
+              <strong>{{ r.label }}</strong>
+              <span class="meta tabular-num">
+                {% if r.has_budget %}
+                  {{ r.spent|yen }} / {{ r.budget|yen }}
+                  ({{ r.pct_for_display }}%)
+                {% else %}
+                  {{ r.spent|yen }}（予算未設定）
+                {% endif %}
+              </span>
+            </div>
+            {% if r.has_budget %}
+              <div class="progress-bar">
+                <div class="progress-bar__fill {% if r.over %}progress-bar__fill--over{% elif r.pct >= 80 %}progress-bar__fill--warn{% endif %}"
+                     data-pct="{{ r.pct }}"></div>
+              </div>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="panel">
+    <div class="panel__body">
+      <div class="toolbar">
+        <h2 class="section-title">支出の内訳</h2>
+        <a href="{% url 'ledger:expense_breakdown' %}?month={{ month_param }}" class="btn btn--soft btn--sm">詳細を見る</a>
+      </div>
+      {% if expense_by_section or expense_by_category %}
+        <div class="expense-breakdown-grid">
+          <div class="expense-breakdown-col">
+            <h3 class="section-subtitle">大分類別</h3>
+            {% if expense_by_section %}
+              <ul class="list">
+                {% for item in expense_by_section %}
+                  <li class="list-item">
+                    <span><strong>{{ item.label }}</strong> <span class="meta">{{ item.pct }}%</span></span>
+                    <strong class="tabular-num">{{ item.total|yen }}</strong>
+                  </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <div class="empty empty--sm">データなし</div>
+            {% endif %}
+          </div>
+          <div class="expense-breakdown-col">
+            <h3 class="section-subtitle">カテゴリ別 (Top 8)</h3>
+            {% if expense_by_category %}
+              <ul class="list">
+                {% for item in expense_by_category %}
+                  <li class="list-item">
+                    <span>{{ item.category__name }}</span>
+                    <strong class="tabular-num">{{ item.total|yen }}</strong>
+                  </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <div class="empty empty--sm">データなし</div>
+            {% endif %}
+          </div>
+        </div>
+      {% else %}
+        <div class="empty">この月の支出はまだ登録されていません。</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel__body">
+      <h2 class="section-title">収支推移（当月）</h2>
+      <figure class="chart-figure">
+        <div class="chart-container chart-container--scroll">
+          <div class="chart-scroll-inner" id="trend-chart-inner">
+            <canvas id="trend-chart" role="img" aria-label="{{ target_month|date:'Y年n月' }}の日次収支推移グラフ。収入 {{ income|yen }}、支出 {{ expense|yen }}、収支 {{ net|yen }}。"></canvas>
+          </div>
+        </div>
+        <figcaption class="sr-only">{{ target_month|date:'Y年n月' }}の日次収支推移を折れ線グラフで表示しています。詳細な日次の数値は上の取引一覧で確認できます。</figcaption>
+      </figure>
+      {{ daily_trend|json_script:"daily-trend-data" }}
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel__body">
+      <h2 class="section-title">口座残高（資産のみ）</h2>
+      <div class="meta">
+        {{ target_month|date:'Y年n月' }}末時点の手元残高。
+        {% if has_liabilities %}
+          負債（クレジットカード未払い・ローン等）は <a href="{% url 'ledger:balance_sheet' %}" class="annual-month-link">資産ページ</a> へ。
+        {% endif %}
+      </div>
+      {% if account_balances %}
+        <ul class="list">
+          {% for account in account_balances %}
+            <li class="list-item">
+              <div>
+                <div><strong>{{ account.name }}</strong></div>
+                <div class="meta">初期残高 {{ account.opening_balance|yen }}</div>
+              </div>
+              <strong>{{ account.current_balance|yen }}</strong>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <div class="empty">表示できる口座がありません。</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="panel" id="transaction-list-panel">
+    <div class="panel__body">
+      <div class="toolbar">
+        <div>
+          <h2 class="section-title section-title--tight">取引一覧</h2>
+          {% if page_obj.paginator.count %}
+            <div class="meta">
+              {% if is_filtered %}絞り込み結果: {% endif %}全 {{ page_obj.paginator.count }} 件中
+              {{ page_obj.start_index }}〜{{ page_obj.end_index }} 件目
+            </div>
+          {% endif %}
+        </div>
+        <div class="button-row" role="group" aria-label="CSV データ操作">
+          {% if page_obj.paginator.count %}
+            <a
+              href="{% url 'ledger:transaction_export' %}?month={{ month_param }}"
+              class="btn btn--ghost"
+              aria-label="今月の取引を CSV でダウンロード"
+            >↓ CSV ダウンロード</a>
+          {% endif %}
+          <a
+            href="{% url 'ledger:transaction_import' %}"
+            class="btn btn--ghost"
+            aria-label="CSV ファイルから取引を取り込む"
+          >↑ CSV インポート</a>
+        </div>
+      </div>
+
+      <div class="filter-bar">
+        <div class="filter-bar__field--grow">
+          <label class="meta" for="filter-q">摘要</label>
+          <input
+            id="filter-q"
+            name="q"
+            type="text"
+            class="form-input"
+            placeholder="キーワード"
+            value="{{ filter_q }}"
+            form="filter-form"
+          >
+        </div>
+        <div class="filter-bar__field">
+          <label class="meta" for="filter-account">口座</label>
+          <select id="filter-account" name="account" class="form-input" form="filter-form">
+            <option value="">すべて</option>
+            {% for acct in all_accounts %}
+              <option value="{{ acct.pk }}" {% if acct.pk == filter_account %}selected{% endif %}>{{ acct.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="filter-bar__field">
+          <label class="meta" for="filter-category">カテゴリ</label>
+          <select id="filter-category" name="category" class="form-input" form="filter-form">
+            <option value="">すべて</option>
+            {% for cat in all_categories %}
+              <option value="{{ cat.pk }}" {% if cat.pk == filter_category %}selected{% endif %}>{{ cat.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="filter-bar__actions">
+          <form
+            id="filter-form"
+            hx-get="{% url 'ledger:dashboard' %}"
+            hx-target="#dashboard-content"
+            hx-swap="innerHTML"
+            hx-push-url="true"
+            class="filter-bar__form"
+          >
+            <input type="hidden" name="month" value="{{ month_param }}">
+            <button type="submit" class="btn btn--ghost">検索</button>
+          </form>
+          {% if is_filtered %}
+            <button
+              class="btn btn--ghost"
+              hx-get="{% url 'ledger:dashboard' %}?month={{ month_param }}"
+              hx-target="#dashboard-content"
+              hx-swap="innerHTML"
+              hx-push-url="true"
+            >クリア</button>
+          {% endif %}
+        </div>
+      </div>
+
+      {% if is_filtered %}
+        <div class="meta filter-status">
+          絞り込み中:
+          {% if filter_q %}摘要「{{ filter_q }}」{% endif %}
+          {% if filter_account %}{% for acct in all_accounts %}{% if acct.pk == filter_account %}口座「{{ acct.name }}」{% endif %}{% endfor %}{% endif %}
+          {% if filter_category %}{% for cat in all_categories %}{% if cat.pk == filter_category %}カテゴリ「{{ cat.name }}」{% endif %}{% endfor %}{% endif %}
+        </div>
+      {% endif %}
+
+      {% if page_obj.object_list %}
+        <div class="table-wrap table-wrap--responsive">
+          <table class="tx-table">
+            <thead>
+              <tr>
+                <th>日付</th>
+                <th>摘要</th>
+                <th>口座</th>
+                <th>カテゴリ</th>
+                <th>金額</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in page_obj.object_list %}
+                {% if row.row_type == 'transfer' %}
+                  <tr>
+                    <td data-label="日付">{{ row.date|date:'Y-m-d' }}</td>
+                    <td data-label="摘要">
+                      <div><strong>{{ row.description }}</strong></div>
+                      {% if row.memo %}<div class="meta">{{ row.memo|truncatechars:40 }}</div>{% endif %}
+                    </td>
+                    <td data-label="口座">{{ row.from_account.name }} → {{ row.to_account.name }}</td>
+                    <td data-label="カテゴリ"><span class="chip">振替</span></td>
+                    <td data-label="金額" class="amount-neutral tabular-num">{{ row.amount|yen }}</td>
+                    <td data-label="操作">
+                      {% if monthly_closing %}
+                        <span class="meta">締め済み</span>
+                      {% else %}
+                        <div class="inline-actions">
+                          <button
+                            class="btn btn--ghost btn--sm"
+                            aria-label="{{ row.description }} の振替を編集"
+                            hx-get="{% url 'ledger:transfer_inline_update' row.pk %}?month={{ month_param }}&page={{ page_obj.number }}{% if filter_qs %}&{{ filter_qs }}{% endif %}"
+                            hx-target="#inline-edit-tr-{{ row.pk }}"
+                            hx-swap="outerHTML"
+                          >✎ 編集</button>
+                          <button
+                            class="btn btn--danger btn--sm"
+                            aria-label="{{ row.description }} の振替を削除"
+                            hx-post="{% url 'ledger:transfer_delete' row.pk %}?month={{ month_param }}&page={{ page_obj.number }}{% if filter_qs %}&{{ filter_qs }}{% endif %}"
+                            hx-swap="none"
+                            hx-confirm="この振替を削除します。取り消しはできません。よろしいですか？"
+                          >🗑 削除</button>
+                        </div>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  <tr id="inline-edit-tr-{{ row.pk }}" class="inline-edit-placeholder"><td colspan="6"></td></tr>
+                {% else %}
+                  <tr>
+                    <td data-label="日付">{{ row.date|date:'Y-m-d' }}</td>
+                    <td data-label="摘要">
+                      <div><strong>{{ row.description }}</strong></div>
+                      {% if row.memo %}<div class="meta">{{ row.memo|truncatechars:40 }}</div>{% endif %}
+                    </td>
+                    <td data-label="口座">{{ row.account.name }}</td>
+                    <td data-label="カテゴリ">
+                      <span class="chip {% if row.category.kind == 'income' %}chip--income{% else %}chip--expense{% endif %}">
+                        {{ row.category.name }}
+                      </span>
+                    </td>
+                    <td data-label="金額" class="tabular-num {% if row.category.kind == 'income' %}amount-income{% else %}amount-expense{% endif %}">
+                      {% if row.category.kind == 'income' %}+{% else %}-{% endif %}{{ row.amount|yen }}
+                    </td>
+                    <td data-label="操作">
+                      {% if monthly_closing %}
+                        <span class="meta">締め済み</span>
+                      {% else %}
+                        <div class="inline-actions">
+                          <button
+                            class="btn btn--ghost btn--sm"
+                            aria-label="{{ row.description }} の取引を編集"
+                            hx-get="{% url 'ledger:transaction_inline_update' row.pk %}?month={{ month_param }}&page={{ page_obj.number }}{% if filter_qs %}&{{ filter_qs }}{% endif %}"
+                            hx-target="#inline-edit-tx-{{ row.pk }}"
+                            hx-swap="outerHTML"
+                          >✎ 編集</button>
+                          <button
+                            class="btn btn--danger btn--sm"
+                            aria-label="{{ row.description }} の取引を削除"
+                            hx-post="{% url 'ledger:transaction_delete' row.pk %}?month={{ month_param }}&page={{ page_obj.number }}{% if filter_qs %}&{{ filter_qs }}{% endif %}"
+                            hx-swap="none"
+                            hx-confirm="この取引を削除します。取り消しはできません。よろしいですか？"
+                          >🗑 削除</button>
+                        </div>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  <tr id="inline-edit-tx-{{ row.pk }}" class="inline-edit-placeholder"><td colspan="6"></td></tr>
+                {% endif %}
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        {% if page_obj.has_other_pages %}
+          <div class="button-row pagination">
+            {% if page_obj.has_previous %}
+              <button
+                class="btn btn--ghost"
+                hx-get="{% url 'ledger:dashboard' %}?month={{ month_param }}&page={{ page_obj.previous_page_number }}{% if filter_qs %}&{{ filter_qs }}{% endif %}"
+                hx-target="#dashboard-content"
+                hx-swap="innerHTML"
+                hx-push-url="true"
+              >← 前ページ</button>
+            {% endif %}
+            <span class="meta pagination__current">
+              {{ page_obj.number }} / {{ page_obj.paginator.num_pages }} ページ
+            </span>
+            {% if page_obj.has_next %}
+              <button
+                class="btn btn--ghost"
+                hx-get="{% url 'ledger:dashboard' %}?month={{ month_param }}&page={{ page_obj.next_page_number }}{% if filter_qs %}&{{ filter_qs }}{% endif %}"
+                hx-target="#dashboard-content"
+                hx-swap="innerHTML"
+                hx-push-url="true"
+              >次ページ →</button>
+            {% endif %}
+          </div>
+        {% endif %}
+
+      {% else %}
+        <div class="empty">
+          {% if is_filtered %}
+            条件に一致する取引はありません。
+          {% else %}
+            <div class="empty__title">この月の取引はまだありません</div>
+            <div class="empty__hint">右側のフォームから最初の取引を追加してみましょう。</div>
+          {% endif %}
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>

@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+{% load ledger_extras %}
+
+{% block title %}BudgetBook | 医療費{% if mode == 'edit' %}編集{% else %}追加{% endif %}{% endblock %}
+{% block route %}medical_expense_form{% endblock %}
+
+{% block content %}
+  <div class="panel">
+    <div class="panel__body">
+      <h1 class="page-title">医療費を{% if mode == 'edit' %}編集{% else %}追加{% endif %}</h1>
+
+      <form method="post" action="{{ form_action }}" class="form-grid">
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+          <div class="form-error">
+            {{ form.non_field_errors }}
+          </div>
+        {% endif %}
+
+        <div class="field">
+          <label for="{{ form.paid_date.id_for_label }}">支払日</label>
+          {{ form.paid_date }}
+          {{ form.paid_date.errors }}
+        </div>
+
+        <div class="field">
+          <label for="{{ form.patient.id_for_label }}">受診者</label>
+          {{ form.patient }}
+          <datalist id="medical-patient-suggestions">
+            {% for p in patient_suggestions %}
+              <option value="{{ p }}"></option>
+            {% endfor %}
+          </datalist>
+          {{ form.patient.errors }}
+        </div>
+
+        <div class="field">
+          <label for="{{ form.provider.id_for_label }}">医療機関・薬局名</label>
+          {{ form.provider }}
+          {{ form.provider.errors }}
+        </div>
+
+        <div class="field">
+          <label for="{{ form.category.id_for_label }}">区分</label>
+          {{ form.category }}
+          {{ form.category.errors }}
+        </div>
+
+        <div class="field">
+          <label for="{{ form.amount.id_for_label }}">支払額</label>
+          {{ form.amount }}
+          {{ form.amount.errors }}
+        </div>
+
+        <div class="field">
+          <label for="{{ form.reimbursement.id_for_label }}">補填額</label>
+          {{ form.reimbursement }}
+          <div class="meta">保険金・出産育児一時金・高額療養費等で補填された金額</div>
+          {{ form.reimbursement.errors }}
+        </div>
+
+        <div class="field">
+          <label for="{{ form.notes.id_for_label }}">メモ</label>
+          {{ form.notes }}
+          {{ form.notes.errors }}
+        </div>
+
+        {{ form.transaction }}
+
+        <div class="button-row form-grid__actions">
+          <button type="submit" class="btn btn--primary">{% if mode == 'edit' %}更新{% else %}登録{% endif %}</button>
+          <a href="{{ cancel_url }}" class="btn btn--ghost">キャンセル</a>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock %}

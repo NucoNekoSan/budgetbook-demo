@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+
+{% block title %}BudgetBook | 設定{% endblock %}
+{% block route %}settings{% endblock %}
+
+{% block content %}
+  <div class="settings-layout">
+    <div class="toolbar">
+      <div>
+        <h1 class="page-title">設定</h1>
+        <div class="meta">口座・カテゴリの管理ができます。変更は取引入力フォームにすぐ反映されます。</div>
+      </div>
+      <div class="button-row">
+        <a href="{% url 'ledger:sections_bulk_edit' %}" class="btn btn--soft">📋 大分類の一括編集</a>
+        <a href="{% url 'ledger:budget_edit' %}" class="btn btn--soft">💰 月次予算</a>
+        <a href="{% url 'ledger:tax_deductions_v2' %}" class="btn btn--primary">📑 確定申告レポート v2</a>
+        <a href="{% url 'ledger:tax_deductions' %}" class="btn btn--soft">📑 税控除レポート (v1)</a>
+        <a href="{% url 'ledger:medical_expense_list' %}" class="btn btn--soft">💊 医療費控除明細</a>
+        <a href="{% url 'ledger:insurance_premium_list' %}" class="btn btn--soft">🛡️ 保険料控除</a>
+        <a href="{% url 'ledger:income_snapshot_list' %}" class="btn btn--soft">📊 年次所得</a>
+        <a href="{% url 'ledger:login_history' %}" class="btn btn--soft">🔐 ログイン履歴</a>
+        <a href="{% url 'ledger:dashboard' %}" class="btn btn--ghost">家計簿に戻る</a>
+      </div>
+    </div>
+
+    <section id="account-list">
+      {% include 'ledger/partials/account_list.html' %}
+    </section>
+
+    <section id="category-list">
+      {% include 'ledger/partials/category_list.html' %}
+    </section>
+  </div>
+{% endblock %}

@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+{% load ledger_extras %}
+
+{% block title %}BudgetBook | {{ year }}年 {{ tax_tag_label }}レポート{% endblock %}
+{% block route %}tax_deductions{% endblock %}
+
+{% block content %}
+  <div class="panel">
+    <div class="panel__body">
+      <div class="toolbar">
+        <div>
+          <h1 class="page-title">{{ year }}年 {{ tax_tag_label }}レポート</h1>
+          <div class="meta">
+            カテゴリの「税控除タグ」で集計しています。タグ未設定のカテゴリは含まれません。
+          </div>
+        </div>
+        <div class="button-row">
+          <a href="{% url 'ledger:tax_deductions' %}?year={{ prev_year }}&tax_tag={{ tax_tag }}" class="btn btn--ghost">← {{ prev_year }}年</a>
+          {% if next_year %}
+            <a href="{% url 'ledger:tax_deductions' %}?year={{ next_year }}&tax_tag={{ tax_tag }}" class="btn btn--ghost">{{ next_year }}年 →</a>
+          {% endif %}
+          <a href="{% url 'ledger:settings' %}" class="btn btn--ghost">設定に戻る</a>
+        </div>
+      </div>
+
+      <form method="get" action="{% url 'ledger:tax_deductions' %}" class="form-grid">
+        <div class="field">
+          <label for="year-input">年</label>
+          <input id="year-input" type="number" name="year" value="{{ year }}" class="form-input" min="2000" max="2099">
+        </div>
+        <div class="field">
+          <label for="tax-tag-select">税控除タグ</label>
+          <select id="tax-tag-select" name="tax_tag" class="form-input">
+            {% for value, label in tax_tag_choices %}
+              <option value="{{ value }}" {% if value == tax_tag %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="button-row form-grid__actions">
+          <button type="submit" class="btn btn--primary">表示</button>
+          <a href="{% url 'ledger:tax_deductions_csv' %}?year={{ year }}&tax_tag={{ tax_tag }}" class="btn btn--soft">↓ CSV ダウンロード</a>
+        </div>
+      </form>
+
+      <div class="cards" style="margin-top: 16px;">
+        <div class="card">
+          <div class="card__label">該当件数</div>
+          <div class="card__value">{{ count }} 件</div>
+        </div>
+        <div class="card card--expense">
+          <div class="card__label">合計金額</div>
+          <div class="card__value">{{ total|yen }}</div>
+        </div>
+        {% if medical_remaining is not None %}
+          <div class="card">
+            <div class="card__label">医療費控除ライン (¥{{ medical_threshold }})</div>
+            {% if medical_remaining > 0 %}
+              <div class="card__value">あと {{ medical_remaining|yen }}</div>
+              <div class="meta">控除ラインに到達していません</div>
+            {% else %}
+              <div class="card__value" style="color: var(--c-income);">✓ 突破</div>
+              <div class="meta">控除申告のメリットがあります</div>
+            {% endif %}
+          </div>
+        {% endif %}
+      </div>
+
+      {% if transactions %}
+        <table class="table" style="margin-top: 16px;">
+          <thead>
+            <tr>
+              <th>日付</th>
+              <th>支払先</th>
+              <th>カテゴリ</th>
+              <th class="num">金額</th>
+              <th>メモ</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for tx in transactions %}
+              <tr>
+                <td>{{ tx.date|date:'Y-m-d' }}</td>
+                <td>{{ tx.description }}</td>
+                <td>{{ tx.category.name }}</td>
+                <td class="num">{{ tx.amount|yen }}</td>
+                <td>{{ tx.memo }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="3"><strong>合計</strong></td>
+              <td class="num"><strong>{{ total|yen }}</strong></td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      {% else %}
+        <div class="helper" style="margin-top: 16px;">
+          {{ year }} 年に「{{ tax_tag_label }}」タグの取引はありません。
+          <br>
+          カテゴリ編集画面で「税控除タグ」を設定すると、ここに集計されます。
+        </div>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

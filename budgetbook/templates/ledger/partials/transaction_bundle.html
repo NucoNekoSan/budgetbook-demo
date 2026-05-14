@@ -1,0 +1,13 @@
+<div id="flash" hx-swap-oob="innerHTML">
+  <div class="flash__message">{{ flash_message }}</div>
+</div>
+
+<div id="dashboard-content" hx-swap-oob="innerHTML">
+  {% include 'ledger/partials/dashboard_content.html' %}
+</div>
+
+<div id="form-panel" class="panel" hx-swap-oob="outerHTML">
+  {% include 'ledger/partials/transaction_form_panel.html' %}
+</div>
+
+<div></div>
