@@ -1,5 +1,5 @@
-Django>=5.2,<5.3
-django-axes>=7.0,<8
+Django>=6.0.5,<6.1
+django-axes>=8.3.1,<9
 django-htmx>=1.27,<1.28
 gunicorn>=23.0,<24
 python-dotenv>=1.1,<2
