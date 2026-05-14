@@ -134,14 +134,19 @@ class SeedDemoDataCommandTest(TestCase):
         self.assertEqual(Category.objects.count(), 21)
         self.assertEqual(Category.objects.filter(kind=Category.Kind.INCOME).count(), 3)
         self.assertEqual(Category.objects.filter(kind=Category.Kind.EXPENSE).count(), 18)
-        # 取引: 月次給与・住居・水道光熱・通信・サブスク・食費 4 件・外食 3 件・日用品 2 件・交通費・娯楽 等 × 3 ヶ月
-        self.assertGreater(Transaction.objects.count(), 30)
-        self.assertEqual(Transfer.objects.count(), 2)
+        # 取引: 3 年分（前々年・前年フル + 当年部分）。前 2 年 600 件以上 + 当年で 600+
+        self.assertGreater(Transaction.objects.count(), 500)
+        # 振替: 月 2 件 × (24 前年 + 当年 1〜12 月) で年初でも 48 + 2 = 50 件以上
+        self.assertGreaterEqual(Transfer.objects.count(), 50)
         self.assertEqual(LoanProfile.objects.count(), 2)
-        self.assertEqual(MedicalExpense.objects.count(), 6)
-        self.assertEqual(InsurancePremium.objects.count(), 4)
-        self.assertEqual(AnnualIncomeSnapshot.objects.count(), 1)
-        self.assertEqual(SectionBudget.objects.count(), 10)
+        # 医療費: 各年 10-12 件 × 2 年 = 20+ 件
+        self.assertGreater(MedicalExpense.objects.count(), 15)
+        # 保険料: 各年 4 件 × 3 年 = 12 件
+        self.assertEqual(InsurancePremium.objects.count(), 12)
+        # 所得スナップショット: 3 年分
+        self.assertEqual(AnnualIncomeSnapshot.objects.count(), 3)
+        # 予算: 当月 + 前月 × 10 セクション = 20 件
+        self.assertEqual(SectionBudget.objects.count(), 20)
 
     def test_seed_is_idempotent_with_reset(self):
         call_command('seed_demo_data', '--reset')

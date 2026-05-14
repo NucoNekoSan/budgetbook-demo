@@ -1,17 +1,21 @@
-"""Public demo / portfolio 用のデモデータを生成する management command。
+"""Public demo / portfolio 用の家計サンプルデータを生成する管理コマンド。
 
-一般的な 4 人家族（夫・妻・子 2 人想定）の家計をモデルにしたダミーデータ。
+日本の一般 4 人家族（夫・妻・子 2 人想定）のリアルな家計を 3 年分生成する。
 実在の人物・口座・金融機関を一切含まない。
+
+データスコープ:
+- **当年**: 1 月〜現在月 (部分年、ダッシュボード・予算検証用)
+- **前年**: 1〜12 月フル (確定申告レポート v2 / 医療費 / 保険料 / 寄附金検証用)
+- **前々年**: 1〜12 月フル (年次推移・複数年選択 UI 検証用)
 
 Usage:
     python manage.py seed_demo_data --reset
-
-`--reset` は既存の demo データだけを削除して再投入する（既存 user / superuser は残す）。
 """
 from __future__ import annotations
 
+import calendar
 import random
-from datetime import date, timedelta
+from datetime import date
 
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
@@ -43,14 +47,12 @@ ASSET_ACCOUNTS = [
 ]
 
 LIABILITY_ACCOUNTS = [
-    # (name, kind, opening_balance_negative_or_zero)
     ('住宅ローン', -25_000_000),
     ('自動車ローン', -1_200_000),
     ('クレジットカード', 0),
 ]
 
 LOAN_PROFILES = [
-    # (account_name, annual_rate_bp, monthly_payment, payment_day, source_account_name, method)
     ('住宅ローン', 130, 85_000, 27, '普通預金', LoanProfile.Method.EQUAL_PRINCIPAL_INTEREST),
     ('自動車ローン', 290, 35_000, 27, '普通預金', LoanProfile.Method.EQUAL_PRINCIPAL_INTEREST),
 ]
@@ -62,7 +64,6 @@ INCOME_CATEGORIES = [
 ]
 
 EXPENSE_CATEGORIES = [
-    # (name, section, tax_tag)
     ('家賃・住宅ローン', Category.Section.HOUSING, Category.TaxTag.NONE),
     ('水道光熱費', Category.Section.UTILITY, Category.TaxTag.NONE),
     ('通信費', Category.Section.UTILITY, Category.TaxTag.NONE),
@@ -84,23 +85,31 @@ EXPENSE_CATEGORIES = [
 ]
 
 
-def _months_back(today: date, n: int) -> date:
-    y = today.year
-    m = today.month - n
-    while m <= 0:
-        y -= 1
-        m += 12
-    return date(y, m, 1)
+# 月別の水道光熱費パターン（夏冬高、春秋低）
+UTILITY_PATTERN = {
+    1: 25_000, 2: 26_500, 3: 22_000, 4: 18_000, 5: 16_500, 6: 17_500,
+    7: 22_000, 8: 27_000, 9: 24_000, 10: 19_500, 11: 19_000, 12: 23_500,
+}
+
+
+def _last_day_of_month(year: int, month: int) -> int:
+    return calendar.monthrange(year, month)[1]
+
+
+def _safe_date(year: int, month: int, day: int) -> date:
+    """日付が月の最終日を超えた場合は月末にクランプする。"""
+    last = _last_day_of_month(year, month)
+    return date(year, month, min(day, last))
 
 
 class Command(BaseCommand):
-    help = 'Public demo / portfolio 用の家計サンプルデータを投入します。'
+    help = 'Public demo / portfolio 用の家計サンプルデータ（3 年分）を投入します。'
 
     def add_arguments(self, parser):
         parser.add_argument(
             '--reset',
             action='store_true',
-            help='既存の取引/振替/医療費/保険料/口座/カテゴリ/予算/LoanProfile/AnnualIncomeSnapshot を全削除してから投入する',
+            help='既存の demo データを全削除してから投入する',
         )
         parser.add_argument(
             '--seed',
@@ -120,22 +129,44 @@ class Command(BaseCommand):
         accounts = self._create_accounts()
         categories = self._create_categories()
         self._create_loan_profiles(accounts)
-        self._create_transactions(accounts, categories)
-        self._create_transfers(accounts)
-        self._create_section_budgets()
-        self._create_medical_expenses()
-        self._create_insurance_premiums()
-        self._create_income_snapshot()
 
+        today = date.today()
+        current_year = today.year
+        years_full = [current_year - 2, current_year - 1]
+        # 当年は 1 月〜現在月 (部分)
+
+        # 取引: 3 年分（前々年・前年フル + 当年部分）
+        for y in years_full:
+            for m in range(1, 13):
+                self._create_monthly_transactions(accounts, categories, y, m)
+        for m in range(1, today.month + 1):
+            self._create_monthly_transactions(accounts, categories, current_year, m)
+
+        self._create_transfers(accounts, years_full, current_year, today.month)
+        self._create_section_budgets()
+        self._create_medical_expenses(years_full)
+        self._create_insurance_premiums(years_full + [current_year])
+        self._create_income_snapshots(years_full + [current_year])
+
+        # 集計表示用
+        total_tx = Transaction.objects.count()
+        total_tf = Transfer.objects.count()
+        total_me = MedicalExpense.objects.count()
+        total_ip = InsurancePremium.objects.count()
         self.stdout.write(self.style.SUCCESS(
-            'Demo data seeded. ログイン: demo / demo / 管理者ログイン admin / admin (本番では使わないこと)'
+            f'Demo data seeded:\n'
+            f'  Transactions: {total_tx}\n'
+            f'  Transfers: {total_tf}\n'
+            f'  MedicalExpense: {total_me}\n'
+            f'  InsurancePremium: {total_ip}\n'
+            f'  Years covered: {current_year-2}〜{current_year}\n'
+            f'  Login: demo / demo  /  Admin: admin / admin'
         ))
 
     # ----- reset --------------------------------------------------------
 
     def _reset(self):
         self.stdout.write('Resetting demo data...')
-        # 順序重要: 子テーブルから削除
         MedicalExpense.objects.all().delete()
         InsurancePremium.objects.all().delete()
         AnnualIncomeSnapshot.objects.all().delete()
@@ -227,257 +258,396 @@ class Command(BaseCommand):
                 },
             )
 
-    # ----- transactions -------------------------------------------------
+    # ----- monthly transactions ----------------------------------------
 
-    def _create_transactions(self, accounts: dict[str, Account], categories: dict[str, Category]):
-        today = date.today()
-        # 過去 3 ヶ月分の取引を生成
-        start_month = _months_back(today, 2)
-        # 各月の典型的なパターン
-        for i in range(3):
-            y, m = self._add_months(start_month, i)
-            month_start = date(y, m, 1)
-            # 月初: 給与（口座: 普通預金）
+    def _create_monthly_transactions(
+        self,
+        accounts: dict[str, Account],
+        categories: dict[str, Category],
+        y: int,
+        m: int,
+    ):
+        # === 収入 ===
+        Transaction.objects.create(
+            date=_safe_date(y, m, 25),
+            account=accounts['普通預金'],
+            category=categories['給与'],
+            amount=380_000,
+            description='給与振込',
+        )
+        # ボーナス (6 月・12 月)
+        if m in (6, 12):
             Transaction.objects.create(
-                date=date(y, m, 25),
+                date=_safe_date(y, m, 10),
                 account=accounts['普通預金'],
-                category=categories['給与'],
-                amount=380_000,
-                description='給与振込',
+                category=categories['ボーナス'],
+                amount=600_000 + random.randint(-50_000, 50_000),
+                description='賞与',
             )
-            # 月末: 副収入（小額）
+        # 副収入 (月による、ポイント還元など)
+        if random.random() < 0.6:
             Transaction.objects.create(
-                date=date(y, m, 28),
+                date=_safe_date(y, m, 28),
                 account=accounts['普通預金'],
                 category=categories['副収入'],
-                amount=random.randint(5_000, 20_000),
-                description='ポイント還元',
+                amount=random.randint(3_000, 15_000),
+                description='ポイント還元・キャッシュバック',
             )
-            # 家賃・住宅ローン (月 1 件)
+
+        # === 固定費 ===
+        Transaction.objects.create(
+            date=_safe_date(y, m, 27),
+            account=accounts['普通預金'],
+            category=categories['家賃・住宅ローン'],
+            amount=120_000,
+            description='住宅ローン返済',
+        )
+        Transaction.objects.create(
+            date=_safe_date(y, m, 15),
+            account=accounts['普通預金'],
+            category=categories['水道光熱費'],
+            amount=UTILITY_PATTERN[m] + random.randint(-1_500, 1_500),
+            description='電気・ガス・水道',
+        )
+        Transaction.objects.create(
+            date=_safe_date(y, m, 10),
+            account=accounts['普通預金'],
+            category=categories['通信費'],
+            amount=13_500,
+            description='携帯・インターネット',
+        )
+        Transaction.objects.create(
+            date=_safe_date(y, m, 5),
+            account=accounts['クレジットカード'],
+            category=categories['サブスク'],
+            amount=2_500,
+            description='動画配信サービス',
+        )
+        Transaction.objects.create(
+            date=_safe_date(y, m, 27),
+            account=accounts['普通預金'],
+            category=categories['保険料'],
+            amount=12_000,
+            description='生命保険・地震保険 月払い分',
+        )
+
+        # === 食費 (週次 4 件) ===
+        for week_day in [3, 10, 17, 24]:
             Transaction.objects.create(
-                date=date(y, m, 27),
-                account=accounts['普通預金'],
-                category=categories['家賃・住宅ローン'],
-                amount=120_000,
-                description='住宅ローン返済',
+                date=_safe_date(y, m, week_day),
+                account=accounts['現金'] if random.random() < 0.3 else accounts['クレジットカード'],
+                category=categories['食費'],
+                amount=random.randint(6_000, 12_000),
+                description=random.choice(['スーパー', '食材まとめ買い', '生協', '農協']),
             )
-            # 水道光熱費
+
+        # === 外食 (月 2-4 件) ===
+        outing_count = random.randint(2, 4)
+        for d in random.sample(range(2, 29), outing_count):
             Transaction.objects.create(
-                date=date(y, m, 15),
-                account=accounts['普通預金'],
-                category=categories['水道光熱費'],
-                amount=random.randint(18_000, 25_000),
-                description='電気・ガス・水道',
-            )
-            # 通信費
-            Transaction.objects.create(
-                date=date(y, m, 10),
-                account=accounts['普通預金'],
-                category=categories['通信費'],
-                amount=random.randint(12_000, 15_000),
-                description='携帯・インターネット',
-            )
-            # サブスク
-            Transaction.objects.create(
-                date=date(y, m, 5),
+                date=_safe_date(y, m, d),
                 account=accounts['クレジットカード'],
-                category=categories['サブスク'],
-                amount=2_500,
-                description='動画配信サービス',
+                category=categories['外食'],
+                amount=random.randint(2_500, 7_500),
+                description=random.choice(['ランチ', 'ファミレス', 'カフェ', '居酒屋']),
             )
-            # 食費 (週次レベルで複数)
-            for week_day in [3, 10, 17, 24]:
-                if week_day > 28:
-                    continue
-                Transaction.objects.create(
-                    date=date(y, m, week_day),
-                    account=accounts['現金'] if random.random() < 0.3 else accounts['クレジットカード'],
-                    category=categories['食費'],
-                    amount=random.randint(6_000, 12_000),
-                    description=random.choice(['スーパー', '食材まとめ買い', '生協']),
-                )
-            # 外食 (月 2-3 件)
-            for d in random.sample(range(2, 29), 3):
-                Transaction.objects.create(
-                    date=date(y, m, d),
-                    account=accounts['クレジットカード'],
-                    category=categories['外食'],
-                    amount=random.randint(2_500, 6_500),
-                    description=random.choice(['ランチ', 'ファミレス', 'カフェ']),
-                )
-            # 日用品
-            for d in random.sample(range(2, 29), 2):
-                Transaction.objects.create(
-                    date=date(y, m, d),
-                    account=accounts['クレジットカード'],
-                    category=categories['日用品'],
-                    amount=random.randint(1_500, 4_000),
-                    description='ドラッグストア',
-                )
-            # 交通費
+
+        # === 日用品 (月 2-3 件) ===
+        for d in random.sample(range(2, 29), random.randint(2, 3)):
             Transaction.objects.create(
-                date=date(y, m, 8),
-                account=accounts['電子マネー'],
-                category=categories['交通費'],
-                amount=random.randint(8_000, 12_000),
-                description='定期券チャージ',
-            )
-            # 医療費 (一部の月のみ)
-            if i % 2 == 0:
-                Transaction.objects.create(
-                    date=date(y, m, 12),
-                    account=accounts['現金'],
-                    category=categories['医療費'],
-                    amount=random.randint(1_500, 6_000),
-                    description='病院・薬局',
-                )
-            # 教育費 (中月のみ)
-            if i == 1:
-                Transaction.objects.create(
-                    date=date(y, m, 6),
-                    account=accounts['普通預金'],
-                    category=categories['教育費'],
-                    amount=22_000,
-                    description='習い事月謝',
-                )
-            # 娯楽
-            Transaction.objects.create(
-                date=date(y, m, 22),
+                date=_safe_date(y, m, d),
                 account=accounts['クレジットカード'],
-                category=categories['娯楽'],
-                amount=random.randint(3_000, 8_000),
-                description='書籍・動画',
+                category=categories['日用品'],
+                amount=random.randint(1_500, 4_500),
+                description=random.choice(['ドラッグストア', 'ホームセンター', '雑貨店']),
             )
-            # ふるさと納税 (最後の月の年末想定)
-            if i == 2:
+
+        # === 交通費 ===
+        Transaction.objects.create(
+            date=_safe_date(y, m, 8),
+            account=accounts['電子マネー'],
+            category=categories['交通費'],
+            amount=random.randint(8_000, 14_000),
+            description='定期券チャージ',
+        )
+
+        # === 娯楽 ===
+        Transaction.objects.create(
+            date=_safe_date(y, m, 22),
+            account=accounts['クレジットカード'],
+            category=categories['娯楽'],
+            amount=random.randint(3_000, 9_000),
+            description=random.choice(['書籍', '動画購入', 'ゲーム', '映画']),
+        )
+
+        # === 医療費 (年に 6-10 件、月によって発生) ===
+        if random.random() < 0.7:
+            Transaction.objects.create(
+                date=_safe_date(y, m, random.randint(5, 25)),
+                account=accounts['現金'] if random.random() < 0.5 else accounts['クレジットカード'],
+                category=categories['医療費'],
+                amount=random.randint(1_500, 6_500),
+                description=random.choice([
+                    '〇〇クリニック', '△△内科', '□□小児科',
+                    '☆☆歯科', '〇〇薬局', '◇◇薬局',
+                ]),
+            )
+
+        # === 衣料・美容 (季節要素、月 0-2 件) ===
+        if random.random() < 0.5:
+            Transaction.objects.create(
+                date=_safe_date(y, m, random.randint(7, 27)),
+                account=accounts['クレジットカード'],
+                category=categories['衣料・美容'],
+                amount=random.randint(3_500, 12_000),
+                description=random.choice(['衣料品店', '美容院', 'コスメ']),
+            )
+
+        # === 交際費 (月 1 件程度) ===
+        if random.random() < 0.6:
+            Transaction.objects.create(
+                date=_safe_date(y, m, random.randint(5, 28)),
+                account=accounts['クレジットカード'],
+                category=categories['交際費'],
+                amount=random.randint(2_000, 8_000),
+                description=random.choice(['ギフト', '飲み会', 'お祝い']),
+            )
+
+        # === 教育費 (月により) ===
+        if m == 4:
+            # 4 月: 入学・新学期
+            Transaction.objects.create(
+                date=_safe_date(y, m, 5),
+                account=accounts['普通預金'],
+                category=categories['教育費'],
+                amount=80_000,
+                description='教材・学用品',
+            )
+        Transaction.objects.create(
+            date=_safe_date(y, m, 6),
+            account=accounts['普通預金'],
+            category=categories['教育費'],
+            amount=22_000,
+            description='習い事月謝',
+        )
+
+        # === 税金 ===
+        if m == 5:
+            Transaction.objects.create(
+                date=_safe_date(y, m, 18),
+                account=accounts['普通預金'],
+                category=categories['税金'],
+                amount=80_000,
+                description='固定資産税',
+            )
+            Transaction.objects.create(
+                date=_safe_date(y, m, 28),
+                account=accounts['普通預金'],
+                category=categories['税金'],
+                amount=39_500,
+                description='自動車税',
+            )
+
+        # === ふるさと納税 (10-12 月: 寄附金控除レポート検証用) ===
+        if m in (10, 11, 12):
+            count = 1 if m != 12 else 2
+            for i in range(count):
                 Transaction.objects.create(
-                    date=date(y, m, 20),
+                    date=_safe_date(y, m, random.randint(5, 28)),
                     account=accounts['クレジットカード'],
                     category=categories['ふるさと納税'],
-                    amount=30_000,
-                    description='ふるさと納税 (返礼品)',
+                    amount=random.choice([10_000, 15_000, 20_000, 30_000]),
+                    description=random.choice([
+                        '◇◇市 ふるさと納税 (返礼品: 米)',
+                        '△△町 ふるさと納税 (返礼品: 果物)',
+                        '〇〇村 ふるさと納税 (返礼品: 肉)',
+                        '□□市 ふるさと納税 (返礼品: 魚介)',
+                    ]),
                 )
 
-    @staticmethod
-    def _add_months(d: date, n: int) -> tuple[int, int]:
-        m = d.month + n
-        y = d.year
-        while m > 12:
-            y += 1
-            m -= 12
-        return y, m
+        # === 金利・手数料 (月 1 件、小額) ===
+        if random.random() < 0.3:
+            Transaction.objects.create(
+                date=_safe_date(y, m, 27),
+                account=accounts['普通預金'],
+                category=categories['金利・手数料'],
+                amount=random.randint(220, 880),
+                description='ATM 手数料',
+            )
 
     # ----- transfers ----------------------------------------------------
 
-    def _create_transfers(self, accounts: dict[str, Account]):
-        today = date.today()
-        # 月次のクレジット引き落とし振替（最近 1 件）
-        last_month = _months_back(today, 1)
-        Transfer.objects.create(
-            date=date(last_month.year, last_month.month, 27),
-            from_account=accounts['普通預金'],
-            to_account=accounts['クレジットカード'],
-            amount=45_000,
-            description='クレジットカード引落',
-        )
-        # 普通預金 → 貯蓄預金 (積立)
-        Transfer.objects.create(
-            date=date(last_month.year, last_month.month, 25),
-            from_account=accounts['普通預金'],
-            to_account=accounts['貯蓄預金'],
-            amount=50_000,
-            description='積立貯蓄',
-        )
+    def _create_transfers(
+        self,
+        accounts: dict[str, Account],
+        years_full: list[int],
+        current_year: int,
+        current_month: int,
+    ):
+        def add_for(y, m):
+            # クレジット引落 (前月分)
+            Transfer.objects.create(
+                date=_safe_date(y, m, 27),
+                from_account=accounts['普通預金'],
+                to_account=accounts['クレジットカード'],
+                amount=random.randint(40_000, 75_000),
+                description='クレジットカード引落',
+            )
+            # 積立貯蓄
+            Transfer.objects.create(
+                date=_safe_date(y, m, 25),
+                from_account=accounts['普通預金'],
+                to_account=accounts['貯蓄預金'],
+                amount=50_000,
+                description='積立貯蓄',
+            )
+
+        for y in years_full:
+            for m in range(1, 13):
+                add_for(y, m)
+        for m in range(1, current_month + 1):
+            add_for(current_year, m)
 
     # ----- budgets ------------------------------------------------------
 
     def _create_section_budgets(self):
         today = date.today()
-        month_start = date(today.year, today.month, 1)
-        section_budgets = [
-            (Category.Section.HOUSING, 130_000),
-            (Category.Section.UTILITY, 30_000),
-            (Category.Section.FOOD_DAILY, 55_000),
-            (Category.Section.DINING_OUT, 15_000),
-            (Category.Section.TRANSPORT, 12_000),
-            (Category.Section.MEDICAL, 10_000),
-            (Category.Section.EDU_LEISURE, 35_000),
-            (Category.Section.APPAREL_BEAUTY, 10_000),
-            (Category.Section.SOCIAL, 8_000),
-            (Category.Section.INSURANCE_TAX, 20_000),
-        ]
-        for section, amount in section_budgets:
-            SectionBudget.objects.update_or_create(
-                month=month_start,
-                section=section,
-                defaults={'amount': amount},
-            )
+        # 当月 + 前月の予算（履歴感）
+        for offset in [0, -1]:
+            y = today.year
+            m = today.month + offset
+            if m <= 0:
+                y -= 1
+                m += 12
+            month_start = date(y, m, 1)
+            for section, amount in [
+                (Category.Section.HOUSING, 130_000),
+                (Category.Section.UTILITY, 30_000),
+                (Category.Section.FOOD_DAILY, 60_000),
+                (Category.Section.DINING_OUT, 15_000),
+                (Category.Section.TRANSPORT, 12_000),
+                (Category.Section.MEDICAL, 12_000),
+                (Category.Section.EDU_LEISURE, 40_000),
+                (Category.Section.APPAREL_BEAUTY, 12_000),
+                (Category.Section.SOCIAL, 10_000),
+                (Category.Section.INSURANCE_TAX, 25_000),
+            ]:
+                SectionBudget.objects.update_or_create(
+                    month=month_start,
+                    section=section,
+                    defaults={'amount': amount},
+                )
 
     # ----- 医療費控除明細 (v1.16.0) -----------------------------------
 
-    def _create_medical_expenses(self):
-        today = date.today()
-        last_year = today.year - 1
-        samples = [
-            (date(last_year, 3, 5), '本人', '〇〇クリニック',
-             MedicalExpense.MedicalCategory.TREATMENT, 4_200, 0, '風邪'),
-            (date(last_year, 6, 12), '配偶者', '△△内科',
-             MedicalExpense.MedicalCategory.TREATMENT, 6_800, 0, '健康診断後の精密検査'),
-            (date(last_year, 7, 20), '子A', '□□小児科',
-             MedicalExpense.MedicalCategory.TREATMENT, 3_500, 0, ''),
-            (date(last_year, 8, 5), '本人', '◇◇薬局',
-             MedicalExpense.MedicalCategory.MEDICINE, 1_800, 0, '処方薬'),
-            (date(last_year, 9, 18), '配偶者', '◎◎薬局',
-             MedicalExpense.MedicalCategory.MEDICINE, 2_400, 1_200, '保険適用の処方薬、組合より一部補填'),
-            (date(last_year, 11, 10), '本人', '☆☆歯科クリニック',
-             MedicalExpense.MedicalCategory.TREATMENT, 8_500, 0, '虫歯治療'),
+    def _create_medical_expenses(self, years: list[int]):
+        """前々年・前年それぞれに 10-12 件の医療費明細を生成。"""
+        patients = ['本人', '配偶者', '子A', '子B']
+        providers_treatment = [
+            '〇〇クリニック', '△△内科', '□□小児科', '☆☆歯科クリニック',
+            '◎◎眼科', '△△整形外科', '〇〇皮膚科',
         ]
-        for paid_date, patient, provider, category, amount, reimbursement, notes in samples:
-            MedicalExpense.objects.create(
-                paid_date=paid_date,
-                patient=patient,
-                provider=provider,
-                category=category,
-                amount=amount,
-                reimbursement=reimbursement,
-                notes=notes,
-            )
+        providers_medicine = ['◇◇薬局', '〇〇薬局', '△△ドラッグ']
+        providers_other = ['交通費 (通院 〇〇クリニック往復)', '交通費 (通院 △△内科)']
+
+        for y in years:
+            # 治療系 (6-8 件)
+            for _ in range(random.randint(6, 8)):
+                MedicalExpense.objects.create(
+                    paid_date=date(y, random.randint(1, 12), random.randint(5, 28)),
+                    patient=random.choice(patients),
+                    provider=random.choice(providers_treatment),
+                    category=MedicalExpense.MedicalCategory.TREATMENT,
+                    amount=random.randint(2_500, 12_000),
+                    reimbursement=0,
+                    notes=random.choice(['', '風邪', '健診結果の精密検査', '虫歯治療', '定期検診']),
+                )
+            # 医薬品 (3-4 件)
+            for _ in range(random.randint(3, 4)):
+                MedicalExpense.objects.create(
+                    paid_date=date(y, random.randint(1, 12), random.randint(5, 28)),
+                    patient=random.choice(patients),
+                    provider=random.choice(providers_medicine),
+                    category=MedicalExpense.MedicalCategory.MEDICINE,
+                    amount=random.randint(1_200, 4_500),
+                    reimbursement=0,
+                    notes='処方薬',
+                )
+            # 通院交通費 (1-2 件、その他区分)
+            for _ in range(random.randint(1, 2)):
+                MedicalExpense.objects.create(
+                    paid_date=date(y, random.randint(1, 12), random.randint(5, 28)),
+                    patient=random.choice(patients),
+                    provider=random.choice(providers_other),
+                    category=MedicalExpense.MedicalCategory.OTHER,
+                    amount=random.randint(800, 3_000),
+                    reimbursement=0,
+                    notes='通院交通費 (公共交通機関)',
+                )
+            # 補填つき (出産育児一時金 / 高額療養費 / 保険組合補填) を 1 件混ぜる
+            if random.random() < 0.5:
+                amt = random.randint(80_000, 200_000)
+                MedicalExpense.objects.create(
+                    paid_date=date(y, random.randint(4, 10), random.randint(5, 28)),
+                    patient=random.choice(['本人', '配偶者']),
+                    provider='〇〇総合病院',
+                    category=MedicalExpense.MedicalCategory.TREATMENT,
+                    amount=amt,
+                    reimbursement=amt // 2,
+                    notes='保険組合補填あり',
+                )
 
     # ----- 保険料控除 (v1.17.0) ------------------------------------------
 
-    def _create_insurance_premiums(self):
-        today = date.today()
-        last_year = today.year - 1
-        samples = [
-            (last_year, InsurancePremium.InsuranceCategory.LIFE_GENERAL,
-             InsurancePremium.ContractType.NEW, '〇〇生命', 'A-1234', 96_000, False),
-            (last_year, InsurancePremium.InsuranceCategory.LIFE_CARE_MEDICAL,
-             InsurancePremium.ContractType.NEW, '△△生命', 'B-5678', 48_000, False),
-            (last_year, InsurancePremium.InsuranceCategory.LIFE_ANNUITY,
-             InsurancePremium.ContractType.OLD, '◇◇共済', 'C-9012', 80_000, False),
-            (last_year, InsurancePremium.InsuranceCategory.EARTHQUAKE,
-             InsurancePremium.ContractType.NEW, '□□損保', 'D-3456', 32_000, False),
-        ]
-        for year, category, contract_type, insurer, policy, amount, year_end in samples:
+    def _create_insurance_premiums(self, years: list[int]):
+        """各年 4 件 (一般生命 + 介護医療 + 個人年金 + 地震) を生成。"""
+        for y in years:
             InsurancePremium.objects.create(
-                year=year,
-                category=category,
-                contract_type=contract_type,
-                insurer=insurer,
-                policy_number=policy,
-                annual_amount=amount,
-                submitted_in_year_end_adjustment=year_end,
+                year=y,
+                category=InsurancePremium.InsuranceCategory.LIFE_GENERAL,
+                contract_type=InsurancePremium.ContractType.NEW,
+                insurer='〇〇生命',
+                policy_number='A-1234567',
+                annual_amount=96_000,
+                submitted_in_year_end_adjustment=False,
+            )
+            InsurancePremium.objects.create(
+                year=y,
+                category=InsurancePremium.InsuranceCategory.LIFE_CARE_MEDICAL,
+                contract_type=InsurancePremium.ContractType.NEW,
+                insurer='△△生命',
+                policy_number='B-2345678',
+                annual_amount=48_000,
+                submitted_in_year_end_adjustment=False,
+            )
+            InsurancePremium.objects.create(
+                year=y,
+                category=InsurancePremium.InsuranceCategory.LIFE_ANNUITY,
+                contract_type=InsurancePremium.ContractType.OLD,
+                insurer='◇◇共済',
+                policy_number='C-3456789',
+                annual_amount=80_000,
+                submitted_in_year_end_adjustment=False,
+            )
+            InsurancePremium.objects.create(
+                year=y,
+                category=InsurancePremium.InsuranceCategory.EARTHQUAKE,
+                contract_type=InsurancePremium.ContractType.NEW,
+                insurer='□□損保',
+                policy_number='D-4567890',
+                annual_amount=32_000,
+                submitted_in_year_end_adjustment=False,
             )
 
     # ----- 年次総所得 ---------------------------------------------------
 
-    def _create_income_snapshot(self):
-        today = date.today()
-        last_year = today.year - 1
-        AnnualIncomeSnapshot.objects.update_or_create(
-            year=last_year,
-            defaults={
-                'gross_income': 4_500_000,
-                'notes': 'デモ用サンプル（源泉徴収票の「給与所得控除後の金額」想定）',
-            },
-        )
+    def _create_income_snapshots(self, years: list[int]):
+        base_income = 4_300_000
+        for i, y in enumerate(sorted(years)):
+            AnnualIncomeSnapshot.objects.update_or_create(
+                year=y,
+                defaults={
+                    'gross_income': base_income + (i * 100_000),
+                    'notes': 'デモ用サンプル（源泉徴収票の「給与所得控除後の金額」想定）',
+                },
+            )
