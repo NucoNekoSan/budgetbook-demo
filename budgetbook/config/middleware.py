@@ -108,6 +108,50 @@ def demo_mode(request):
     }
 
 
+_DEMO_USERNAME = 'demo'
+
+
+class DemoAutoLoginMiddleware:
+    """DEMO_MODE=1 かつ DEMO_AUTO_LOGIN=1 のとき、未認証リクエストを
+    `demo` ユーザーとして自動ログインさせる。
+
+    公開ポートフォリオ demo で「URL を開けば即閲覧開始できる」体験を実現する。
+    DemoModeWriteBlockMiddleware と組み合わせる前提なので、自動ログインしても
+    POST/PUT/DELETE は 403 でブロックされる（書き込み不可）。
+
+    制約:
+    - 既に他のユーザーで認証済みの場合は何もしない（ログインフォームから
+      明示的に他ユーザーでログインしたケースを尊重）
+    - `demo` ユーザーが DB に存在しない場合は何もしない（seed 済前提）
+    - django-axes を経由しない programmatic login のため、ロックアウト判定の
+      対象外（demo 用途として意図的）
+
+    依存: AuthenticationMiddleware の後ろに置くこと。
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if (
+            getattr(settings, 'DEMO_MODE', False)
+            and getattr(settings, 'DEMO_AUTO_LOGIN', False)
+            and not request.user.is_authenticated
+        ):
+            from django.contrib.auth import get_user_model, login
+            User = get_user_model()
+            try:
+                demo_user = User.objects.get(username=_DEMO_USERNAME)
+            except User.DoesNotExist:
+                demo_user = None
+            if demo_user is not None:
+                # backend は AxesStandaloneBackend / ModelBackend のうち
+                # ModelBackend を使う（axes をスキップ、programmatic login のため）
+                demo_user.backend = 'django.contrib.auth.backends.ModelBackend'
+                login(request, demo_user)
+        return self.get_response(request)
+
+
 class _SlidingWindow:
     """単一プロセス内の per-key sliding window. axes と独立した二次防御。"""
 

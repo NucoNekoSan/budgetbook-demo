@@ -98,6 +98,47 @@ class DemoModeMiddlewareTest(TestCase):
         self.assertNotEqual(resp.status_code, 403)
 
 
+class DemoAutoLoginMiddlewareTest(TestCase):
+    """DEMO_AUTO_LOGIN=1 で未認証訪問者を demo ユーザーとして自動ログイン。"""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.demo_user = User.objects.create_user(username='demo', password='demo')
+
+    @override_settings(DEMO_MODE=True, DEMO_AUTO_LOGIN=True)
+    def test_anonymous_visitor_auto_logged_in(self):
+        """未ログインで dashboard アクセス → demo ユーザーで自動ログイン → 200。"""
+        resp = self.client.get(reverse('ledger:dashboard'))
+        self.assertEqual(resp.status_code, 200)
+        # template に user.username が出るはず
+        body = resp.content.decode('utf-8')
+        self.assertIn('demo', body)
+
+    @override_settings(DEMO_MODE=True, DEMO_AUTO_LOGIN=False)
+    def test_auto_login_disabled_redirects_to_login(self):
+        """DEMO_AUTO_LOGIN=False では従来通り login_required redirect。"""
+        resp = self.client.get(reverse('ledger:dashboard'))
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn('/accounts/login/', resp['Location'])
+
+    @override_settings(DEMO_MODE=False, DEMO_AUTO_LOGIN=True)
+    def test_auto_login_inert_when_demo_mode_off(self):
+        """DEMO_MODE=False なら DEMO_AUTO_LOGIN=True でも自動ログインしない。"""
+        resp = self.client.get(reverse('ledger:dashboard'))
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn('/accounts/login/', resp['Location'])
+
+    @override_settings(DEMO_MODE=True, DEMO_AUTO_LOGIN=True)
+    def test_existing_session_not_overridden(self):
+        """既に他ユーザーで認証済みなら自動ログインで上書きしない。"""
+        other = User.objects.create_user(username='other', password='other')
+        self.client.login(username='other', password='other')
+        resp = self.client.get(reverse('ledger:dashboard'))
+        self.assertEqual(resp.status_code, 200)
+        body = resp.content.decode('utf-8')
+        self.assertIn('other', body)
+
+
 class DemoModeContextProcessorTest(TestCase):
     """context processor が template に DEMO_MODE フラグを渡す。"""
 
