@@ -41,7 +41,11 @@
 
 ## 🌐 オンラインデモ
 
-> （デモホスティング URL を Release 後に追加予定）
+👉 **ライブデモ (静的スナップショット)**: https://budgetbook-demo-static.nuconekosan.workers.dev/
+
+セキュリティ最優先のため、**Cloudflare Pages 配信の静的 HTML スナップショット**として公開しています。Django ランタイムを公開せず攻撃面ゼロ、24/7 稼働、cold start なし。動的版を実際に動かしたい場合は本リポジトリを `git clone` して `start-windows.bat` で起動してください (3 分で完全動作)。
+
+静的スナップショットのソースは [budgetbook-demo-static](https://github.com/NucoNekoSan/budgetbook-demo-static) リポジトリ。`scripts/mirror.py` でローカル demo から再生成可能。
 
 デモは **読み取り専用** です。`DEMO_MODE=1` で `POST/PUT/PATCH/DELETE` がブロックされ、画面は全閲覧可。
 
