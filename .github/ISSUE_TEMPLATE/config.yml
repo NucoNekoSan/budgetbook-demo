@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 🔒 Security vulnerability
+    url: https://github.com/NucoNekoSan/budgetbook-demo/security/advisories/new
+    about: セキュリティ脆弱性は public issue ではなく Security Advisories から private 報告してください
+  - name: 📖 Documentation
+    url: https://github.com/NucoNekoSan/budgetbook-demo/tree/master/docs
+    about: 仕様書・運用ガイド・設計判断は docs/ 配下を参照
