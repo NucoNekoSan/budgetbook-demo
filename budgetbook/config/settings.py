@@ -68,17 +68,6 @@ DEMO_MODE = _env_bool('DEMO_MODE')
 DEMO_ALLOW_WRITES = _env_bool('DEMO_ALLOW_WRITES')
 DEMO_AUTO_LOGIN = _env_bool('DEMO_AUTO_LOGIN')
 
-# ---------------------------------------------------------------------------
-# Demo mode (public ポートフォリオ / self-host distribution 用)
-# DEMO_MODE=1 で「デモデータです」バナー表示 + mutation ブロック (read-only)
-# DEMO_ALLOW_WRITES=1 で DEMO_MODE 中でも書き込み許可（preview / sandbox 用）
-# DEMO_AUTO_LOGIN=1 で demo ユーザーで自動ログイン（demo サイト用）
-# 全てデフォルト OFF — 通常のセルフホスト時は非 demo として動作
-# ---------------------------------------------------------------------------
-DEMO_MODE = _env_bool('DEMO_MODE')
-DEMO_ALLOW_WRITES = _env_bool('DEMO_ALLOW_WRITES')
-DEMO_AUTO_LOGIN = _env_bool('DEMO_AUTO_LOGIN')
-
 INSTALLED_APPS = [
     'axes',
     'django.contrib.admin',

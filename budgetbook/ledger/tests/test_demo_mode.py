@@ -197,12 +197,45 @@ class SeedDemoDataCommandTest(TestCase):
         # 同じ seed で同じ件数（再現性）
         self.assertEqual(first_tx_count, second_tx_count)
 
-    def test_seed_creates_demo_user(self):
+    def test_seed_does_not_create_users_by_default(self):
+        """--create-demo-users なしでは demo / admin ユーザーは作成されない。"""
         from django.contrib.auth import get_user_model
         User = get_user_model()
         call_command('seed_demo_data', '--reset')
+        self.assertFalse(User.objects.filter(username='demo').exists())
+        self.assertFalse(User.objects.filter(username='admin').exists())
+
+    def test_seed_create_demo_users_without_demo_mode_skips_admin(self):
+        """DEMO_MODE=0 では admin superuser は作成されない（本番事故防止）。"""
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        with self.settings(DEMO_MODE=False):
+            call_command('seed_demo_data', '--reset', '--create-demo-users')
         self.assertTrue(User.objects.filter(username='demo').exists())
-        self.assertTrue(User.objects.filter(username='admin', is_superuser=True).exists())
+        self.assertFalse(User.objects.filter(username='admin').exists())
+
+    def test_seed_create_demo_users_with_demo_mode_creates_random_admin(self):
+        """DEMO_MODE=1 では admin が作成され、パスワードは固定の 'admin' ではない。"""
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        with self.settings(DEMO_MODE=True):
+            call_command('seed_demo_data', '--reset', '--create-demo-users')
+        admin = User.objects.filter(username='admin', is_superuser=True).first()
+        self.assertIsNotNone(admin)
+        # ランダムパスワードのため 'admin' での認証は失敗する
+        self.assertFalse(admin.check_password('admin'))
+
+    def test_seed_create_demo_users_does_not_overwrite_existing_admin(self):
+        """既存 admin の password は絶対に上書きしない。"""
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        existing = User.objects.create_user(
+            username='admin', password='preserved-password', is_staff=True, is_superuser=True,
+        )
+        with self.settings(DEMO_MODE=True):
+            call_command('seed_demo_data', '--reset', '--create-demo-users')
+        existing.refresh_from_db()
+        self.assertTrue(existing.check_password('preserved-password'))
 
     def test_seed_does_not_use_real_personal_categories(self):
         """seed したカテゴリ名に private repo の実カテゴリ名が含まれていないこと。"""

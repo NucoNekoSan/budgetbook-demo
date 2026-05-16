@@ -15,8 +15,10 @@ from __future__ import annotations
 
 import calendar
 import random
+import secrets
 from datetime import date
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
 from django.db import transaction as db_transaction
@@ -117,6 +119,15 @@ class Command(BaseCommand):
             default=42,
             help='ランダム seed（再現性確保用、デフォルト 42）',
         )
+        parser.add_argument(
+            '--create-demo-users',
+            action='store_true',
+            help=(
+                'demo / admin ユーザーを作成する。'
+                ' 本番 DB への誤実行を防ぐため、DEMO_MODE=1 のときのみ admin パスワードはランダム生成され stdout に表示される。'
+                ' 既存ユーザーは触らない。'
+            ),
+        )
 
     @db_transaction.atomic
     def handle(self, *args, **options):
@@ -125,7 +136,9 @@ class Command(BaseCommand):
         if options['reset']:
             self._reset()
 
-        self._create_demo_user()
+        self._admin_password_for_log = None
+        if options['create_demo_users']:
+            self._create_demo_user()
         accounts = self._create_accounts()
         categories = self._create_categories()
         self._create_loan_profiles(accounts)
@@ -153,15 +166,19 @@ class Command(BaseCommand):
         total_tf = Transfer.objects.count()
         total_me = MedicalExpense.objects.count()
         total_ip = InsurancePremium.objects.count()
-        self.stdout.write(self.style.SUCCESS(
+        summary = (
             f'Demo data seeded:\n'
             f'  Transactions: {total_tx}\n'
             f'  Transfers: {total_tf}\n'
             f'  MedicalExpense: {total_me}\n'
             f'  InsurancePremium: {total_ip}\n'
-            f'  Years covered: {current_year-2}〜{current_year}\n'
-            f'  Login: demo / demo  /  Admin: admin / admin'
-        ))
+            f'  Years covered: {current_year-2}〜{current_year}'
+        )
+        if options['create_demo_users']:
+            summary += '\n  Login: demo / demo'
+            if self._admin_password_for_log:
+                summary += f'\n  Admin: admin / {self._admin_password_for_log}  (一度だけ表示。記録すること)'
+        self.stdout.write(self.style.SUCCESS(summary))
 
     # ----- reset --------------------------------------------------------
 
@@ -180,18 +197,47 @@ class Command(BaseCommand):
     # ----- users --------------------------------------------------------
 
     def _create_demo_user(self):
+        """demo / admin ユーザーを作成する。
+
+        セキュリティ:
+        - demo ユーザー (一般): DEMO_AUTO_LOGIN 経由で公開デモが自動ログインするための
+          read-only アカウント。password 'demo' は固定（auto-login 前提なので実質無意味）。
+        - admin ユーザー (superuser):
+            * DEMO_MODE=1 のときのみ作成許可。本番 DB への誤実行を防ぐ。
+            * password は毎回ランダム生成し stdout に **一度だけ** 表示。
+            * 既存 admin ユーザーは絶対に上書きしない（パスワードリセット事故防止）。
+        """
+        demo_mode = bool(getattr(settings, 'DEMO_MODE', False))
         User = get_user_model()
-        for username, password, is_super in [
-            ('demo', 'demo', False),
-            ('admin', 'admin', True),
-        ]:
-            user, created = User.objects.get_or_create(
-                username=username,
-                defaults={'is_staff': is_super, 'is_superuser': is_super},
-            )
-            if created:
-                user.set_password(password)
-                user.save()
+
+        demo_user, created = User.objects.get_or_create(
+            username='demo',
+            defaults={'is_staff': False, 'is_superuser': False},
+        )
+        if created:
+            demo_user.set_password('demo')
+            demo_user.save()
+
+        if not demo_mode:
+            self.stdout.write(self.style.WARNING(
+                'DEMO_MODE=0 のため admin superuser は作成しません。'
+                ' demo 用に必要なら DEMO_MODE=1 を設定して再実行するか、'
+                ' `python manage.py createsuperuser` で安全に作成してください。'
+            ))
+            return
+
+        existing_admin = User.objects.filter(username='admin').first()
+        if existing_admin is not None:
+            self.stdout.write(self.style.WARNING(
+                'admin ユーザーは既に存在します。パスワードは変更しません。'
+            ))
+            return
+
+        admin_password = secrets.token_urlsafe(18)
+        admin = User(username='admin', is_staff=True, is_superuser=True)
+        admin.set_password(admin_password)
+        admin.save()
+        self._admin_password_for_log = admin_password
 
     # ----- master -------------------------------------------------------
 
