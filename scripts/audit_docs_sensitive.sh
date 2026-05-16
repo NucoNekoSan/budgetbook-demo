@@ -31,7 +31,8 @@ PATTERNS=(
   '192\.168\.1\.(37|40)'                 # 実 LAN IP (placeholder の .10/.x.x は許容)
   '240d:18:7:4200'                       # 実 IPv6 prefix
   # === 実銀行名 / 実居住地由来 / 実リボ口座名 ===
-  '普通預金A' '<your-city>'
+  # 注: 本 script ファイルは自己 bypass されているため literal pattern OK
+  '北洋銀行' '札幌市'
   'クレカリボ[ABC]'                       # placeholder: クレジットカードA/B/C
   # === 実 email ===
   'isonohideki@' 'risa19841013'
