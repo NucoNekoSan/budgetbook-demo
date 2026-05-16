@@ -547,7 +547,7 @@ class AccountForm(forms.ModelForm):
         model = Account
         fields = ['name', 'opening_balance', 'notes']
         widgets = {
-            'name': forms.TextInput(attrs={'class': 'form-input', 'placeholder': '例: 三菱UFJ、現金'}),
+            'name': forms.TextInput(attrs={'class': 'form-input', 'placeholder': '例: 普通預金A、現金、クレジットカードA'}),
             'opening_balance': forms.NumberInput(attrs={'class': 'form-input', 'step': '1', 'min': '0'}),
             'notes': forms.Textarea(attrs={'class': 'form-input', 'rows': 2, 'placeholder': '任意メモ'}),
         }

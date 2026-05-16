@@ -209,7 +209,7 @@ class AccountForm(forms.ModelForm):
         model = Account
         fields = ['name', 'kind', 'opening_balance', 'notes']
         widgets = {
-            'name': forms.TextInput(attrs={'class': 'form-input', 'placeholder': '例: 三菱UFJ、現金、楽天カード'}),
+            'name': forms.TextInput(attrs={'class': 'form-input', 'placeholder': '例: 普通預金A、現金、クレジットカードA'}),
             'kind': forms.Select(attrs={'class': 'form-input'}),
             'opening_balance': forms.NumberInput(attrs={'class': 'form-input', 'step': '1'}),
             'notes': forms.Textarea(attrs={'class': 'form-input', 'rows': 2, 'placeholder': '任意メモ'}),
@@ -408,7 +408,7 @@ class MedicalExpenseForm(forms.ModelForm):
         widgets = {
             'paid_date': DateInput(attrs={'class': 'form-input', 'autocomplete': 'off'}),
             'patient': forms.TextInput(attrs={
-                'class': 'form-input', 'placeholder': '例: 本人 / 配偶者 / 子A',
+                'class': 'form-input', 'placeholder': '例: 受診者A / 受診者B / 子供A',
                 'list': 'medical-patient-suggestions',
                 'autocomplete': 'off',
             }),

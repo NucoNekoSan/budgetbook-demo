@@ -19,7 +19,7 @@ class AccountKindFieldTest(TestCase):
 
     def test_liability_account_can_be_created(self):
         a = Account.objects.create(
-            name='楽天カード', kind=Account.Kind.LIABILITY, opening_balance=0,
+            name='クレジットカードA', kind=Account.Kind.LIABILITY, opening_balance=0,
         )
         self.assertEqual(a.kind, 'liability')
 
