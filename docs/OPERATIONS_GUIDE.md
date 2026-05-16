@@ -568,7 +568,7 @@ docker compose exec budgetbook python manage.py accrue_loan_principal --month 20
 
 **B. 後追い入力 / 家計簿外医療費** — `/medical-expenses/new/` から直接登録:
 
-- 保険組合の事後請求書、配偶者が別決済した医療費 等、Transaction を伴わない医療費を登録する場合
+- 保険組合の事後請求書、世帯メンバーが別途決済した医療費 等、Transaction を伴わない医療費を登録する場合
 - 区分は 4 択（診療・治療 / 医薬品 / 介護保険サービス / その他）
 
 ### CSV 出力

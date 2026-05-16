@@ -1,7 +1,7 @@
 # BudgetBook Deployment (Docker + Cloudflare Tunnel)
 
 本番運用は Ubuntu Server + Docker + Cloudflare Tunnel + Cloudflare Access の構成を前提とする。
-本人と妻の 2 名のみがアクセスできるようにする。
+1 世帯（最大 2 名想定）の利用者のみがアクセスできるようにする。
 
 ## 0. 絶対に守ること
 
@@ -167,8 +167,8 @@ Cloudflare Zero Trust > Access > Applications > Add an application > **Self-host
 
 - Action: `Allow`
 - Configure rules > Include > **Emails**
-  - 本人メール
-  - 妻メール
+  - 主利用者のメール
+  - 副利用者のメール（必要なら）
 - それ以外は拒否（暗黙）
 
 IdP は Cloudflare One-Time PIN（メール送信）または Google IdP を使う。

@@ -84,7 +84,7 @@
 - [ ] `budgetbook` は read-only rootfs で、書き込み先が bind mount / tmpfs に限定されている
 - [ ] SQLite `busy_timeout` / `foreign_keys` / `WAL` が有効
 - [ ] example の Docker ポート設計と競合していない
-- [ ] Cloudflare Access policy が本人と妻のメールのみに限定されている
+- [ ] Cloudflare Access policy が世帯メンバーのメールのみに限定されている
 - [ ] Django ログインが残っている
 - [ ] Cloudflare アカウント 2FA が有効
 - [ ] `budgetbook-backup.timer` が有効化されている

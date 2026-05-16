@@ -5,7 +5,7 @@ BudgetBook は個人の金融情報を扱う実運用アプリである。利便
 ## 1. 原則
 
 1. 秘密情報を Git、ログ、AI プロンプトに含めない。
-2. 一般公開しない。アクセス対象は本人と妻に限定する。
+2. 一般公開しない。アクセス対象は世帯メンバー（最大 2 名想定）に限定する。
 3. Django ログインに加え、外部アクセスでは Cloudflare Access を前段に置く。
 4. migration は既存データを壊さない。
 5. 会計ロジック変更にはテストを追加する。
@@ -98,7 +98,7 @@ scripts/backup_budgetbook.sh
 必須:
 
 - ルーターの 80/443 ポート開放をしない。
-- Cloudflare Access の Allow policy は本人と妻のメールのみ。
+- Cloudflare Access の Allow policy は世帯メンバーのメールのみ（最大 2 名想定）。
 - Django ログインを残す。
 - Tunnel token は BudgetBook の `.env` / compose に入れず、Ubuntu host 側の `cloudflared` systemd サービスだけで管理する。
 - Cloudflare アカウントは 2FA を有効にする。

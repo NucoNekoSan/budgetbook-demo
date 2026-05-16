@@ -161,7 +161,7 @@ v1.5.0 で導入。詳細は `docs/DEPLOYMENT.md`。
 - example の Docker ポート設計を基準にし、BudgetBook の host 公開ポートは 8010 に分離する。
 - `cloudflared` は compose に含めず、Ubuntu host の systemd で運用する（token を compose と切り離す）。
 - Cloudflare Tunnel Public Hostname `home.example.com` → `http://127.0.0.1:8010`。
-- Cloudflare Access self-hosted policy で本人と妻のメールだけ許可。Django ログインは残し二重認証。
+- Cloudflare Access self-hosted policy で許可済みメール（世帯メンバーのみ）を通す。Django ログインは残し二重認証。
 - Cloudflare Tunnel 配下では `TRUST_PROXY_SSL=1`、`SECURE_COOKIES=1`、Django の `ENABLE_HTTPS` は OFF（リダイレクトループ防止）。
 
 ## 9. Backup / Restore 方針
