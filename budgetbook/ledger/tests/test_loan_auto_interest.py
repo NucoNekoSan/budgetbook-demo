@@ -24,7 +24,7 @@ class AccrueLoanInterestTest(TestCase):
             name='金利・手数料',
             kind=Category.Kind.EXPENSE,
         )
-        # 利息計上の対象になる負債口座 (16.80% 残債 ¥¥XXX,XXX)
+        # 利息計上の対象になる負債口座 (16.80% 残債 ¥500,000、demo 用ラウンド値)
         cls.acct_revolving = Account.objects.create(
             name='クレジットカードA',
             kind=Account.Kind.LIABILITY,
@@ -35,7 +35,7 @@ class AccrueLoanInterestTest(TestCase):
             annual_rate_bp=1680,  # 16.80%
             method=LoanProfile.Method.REVOLVING,
         )
-        # 利率 0% (対象外)
+        # 利率 0% (対象外、demo 用ラウンド値)
         cls.acct_zero = Account.objects.create(
             name='分割返済B',
             kind=Account.Kind.LIABILITY,
@@ -56,8 +56,8 @@ class AccrueLoanInterestTest(TestCase):
         output = self._call(month='2026-05')
         self.assertIn('[DRY-RUN]', output)
         self.assertIn('クレジットカードA', output)
-        # 元本 ¥¥XXX,XXX × 16.80%/12 = ¥5,444.5598 → round = ¥¥X,XXX
-        self.assertIn('¥¥X,XXX', output)
+        # 元本 ¥500,000 × 16.80%/12 = ¥7,000 (ちょうど)
+        self.assertIn('¥7,000', output)
         self.assertNotIn('分割返済B', output)  # 0% はスキップ
         # DB は変更されていない
         self.assertEqual(Transaction.objects.count(), 0)
@@ -142,7 +142,7 @@ class AccrueLoanInterestTest(TestCase):
 
     def test_apply_balance_includes_prior_transactions(self):
         """月初時点の残高に過去 Transaction が反映されること。"""
-        # 4 月末に追加支出 ¥10,000 (リボ残高が -398,897 になる)
+        # 4 月末に追加支出 ¥10,000 (リボ残高が -510,000 になる)
         expense_cat = Category.objects.create(name='テスト支出', kind=Category.Kind.EXPENSE)
         Transaction.objects.create(
             date=date(2026, 4, 30),
@@ -153,5 +153,5 @@ class AccrueLoanInterestTest(TestCase):
         )
         self._call(month='2026-05', apply=True)
         tx = Transaction.objects.filter(category=self.interest_cat).get()
-        # 元本 398,897 × 16.80%/12 = 5,584.558 → 5,585
-        self.assertEqual(tx.amount, 5585)
+        # 元本 510,000 × 16.80%/12 = 7,140 (ちょうど)
+        self.assertEqual(tx.amount, 7140)

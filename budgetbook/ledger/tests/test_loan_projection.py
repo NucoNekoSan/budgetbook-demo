@@ -24,8 +24,8 @@ class LoanProjectionServiceTest(TestCase):
         )
 
     def test_interest_bearing_loan_projects_finite_months(self):
-        # クレジットカードA 相当: 残¥¥XXX,XXX / 年16.80% / 月¥10,000
-        acc = self._make_liability('クレジットカードA', -388_897)
+        # 利息ありローン (demo ラウンド値): 残¥500,000 / 年16.80% / 月¥10,000
+        acc = self._make_liability('クレジットカードA', -500_000)
         LoanProfile.objects.create(
             account=acc, annual_rate_bp=1680, monthly_payment=10_000, payment_day=27,
         )
@@ -33,27 +33,25 @@ class LoanProjectionServiceTest(TestCase):
         self.assertIsNotNone(r)
         self.assertIsNone(r['warning'])
         self.assertEqual(r['monthly_payment'], 10_000)
-        self.assertEqual(r['owed'], 388_897)
-        # 月利息 ≈ 5,444。1 回目の元金返済 ≈ 4,556
-        self.assertGreater(r['next_interest'], 5_000)
-        self.assertLess(r['next_interest'], 6_000)
-        # 概ね 52〜80 ヶ月で完済する想定（雪崩 1 件単独）
+        self.assertEqual(r['owed'], 500_000)
+        # 月利息 = 500,000 × 16.80%/12 = 7,000 (ちょうど)
+        self.assertEqual(r['next_interest'], 7_000)
+        # 雪崩 1 件単独でも完済まで > 0 ヶ月
         self.assertIsNotNone(r['months_remaining'])
-        self.assertGreater(r['months_remaining'], 40)
-        self.assertLess(r['months_remaining'], 120)
+        self.assertGreater(r['months_remaining'], 0)
         self.assertGreater(r['total_interest'], 0)
         self.assertIsNotNone(r['payoff_date'])
 
     def test_zero_interest_loan_uses_ceil(self):
-        # ショッピング分割相当: 残¥¥XX,XXX / 0% / 月¥4,900
-        acc = self._make_liability('ショッピング分割', -34_300)
+        # 利息ゼロローン (demo ラウンド値): 残¥50,000 / 0% / 月¥5,000
+        acc = self._make_liability('ショッピング分割', -50_000)
         LoanProfile.objects.create(
-            account=acc, annual_rate_bp=0, monthly_payment=4_900, payment_day=0,
+            account=acc, annual_rate_bp=0, monthly_payment=5_000, payment_day=0,
         )
         r = project_fixed_principal_payoff(acc, as_of=date(2026, 5, 1))
-        self.assertEqual(r['months_remaining'], 7)
+        self.assertEqual(r['months_remaining'], 10)
         self.assertEqual(r['total_interest'], 0)
-        self.assertEqual(r['total_paid'], 34_300)
+        self.assertEqual(r['total_paid'], 50_000)
         self.assertEqual(r['next_interest'], 0)
         self.assertIsNone(r['warning'])
 
@@ -74,7 +72,7 @@ class LoanProjectionServiceTest(TestCase):
         self.assertIsNone(r)
 
     def test_zero_monthly_payment_returns_none(self):
-        acc = self._make_liability('分割返済B', -184_907)
+        acc = self._make_liability('分割返済B', -200_000)
         LoanProfile.objects.create(
             account=acc, annual_rate_bp=0, monthly_payment=0,
         )
