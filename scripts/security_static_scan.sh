@@ -31,7 +31,7 @@ if [[ "${SCAN_RUNNER}" == "docker" ]]; then
     -v "${PROJECT_DIR}:/src:ro" \
     -e SCAN_FORMAT="${SCAN_FORMAT}" \
     "${SCAN_IMAGE}" \
-    sh -lc 'python -m pip install --upgrade pip --root-user-action=ignore >/dev/null && python -m pip install --root-user-action=ignore "bandit[toml]>=1.8,<2" >/dev/null && bandit -r /src/budgetbook -x /src/budgetbook/ledger/tests,/src/budgetbook/.venv,/src/budgetbook/staticfiles -f "${SCAN_FORMAT}"'
+    sh -lc 'python -m pip install --upgrade pip --root-user-action=ignore >/dev/null && python -m pip install --root-user-action=ignore "bandit[toml]>=1.8,<2" >/dev/null && bandit -r /src/budgetbook -x /src/budgetbook/ledger/tests,/src/budgetbook/.venv,/src/budgetbook/staticfiles -ll -f "${SCAN_FORMAT}"'
   exit 0
 fi
 
@@ -52,4 +52,4 @@ source "${TMP_DIR}/venv/bin/activate"
 python -m pip install --upgrade pip >/dev/null
 python -m pip install "bandit[toml]>=1.8,<2" >/dev/null
 
-bandit -r "${PROJECT_DIR}/budgetbook" -x "$(join_by_comma "${EXCLUDE_PATHS[@]}")" -f "${SCAN_FORMAT}"
+bandit -r "${PROJECT_DIR}/budgetbook" -x "$(join_by_comma "${EXCLUDE_PATHS[@]}")" -ll -f "${SCAN_FORMAT}"
