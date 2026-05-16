@@ -201,7 +201,7 @@ Copy-Item db.sqlite3 -Destination $dir
 ### 例: 食品・日用品グループ
 
 - グループ名: `食品・日用品`
-- 所属カテゴリ: スーパー / コンビニ / Co-op / ドラッグストア など
+- 所属カテゴリ: スーパー / コンビニ / ドラッグストア など細分化された Category 群
 - 百貨店は購入内容が多岐にわたるため、初期状態では所属させない。
 
 ## 運用補助 (v1.7.x)
@@ -366,7 +366,7 @@ DEFAULT_FROM_EMAIL=budgetbook@demo-user.example
 
 ## 利息自動計上 (v1.11.0)
 
-リボ払い等、年利 > 0 の負債口座 (`LoanProfile.annual_rate_bp > 0`) に対して、当月利息相当額を支出 Transaction として一括生成する management command。
+年利 > 0 の有利子負債口座 (`LoanProfile.annual_rate_bp > 0`) に対して、当月利息相当額を支出 Transaction として一括生成する management command。
 
 ### 事前準備（初回のみ）
 
@@ -440,7 +440,7 @@ docker compose exec budgetbook python manage.py accrue_loan_interest --month 202
 
 ## 元金返済 Transfer 自動化 (v1.12.0)
 
-毎月の引落（銀行→負債口座の Transfer）を自動生成する。v1.11.0 の利息計上と組み合わせて、リボ運用の月次手入力をゼロにする。
+毎月の引落（銀行→負債口座の Transfer）を自動生成する。v1.11.0 の利息計上と組み合わせて、有利子負債口座の月次手入力をゼロにする。
 
 ### 事前準備（初回のみ）
 
