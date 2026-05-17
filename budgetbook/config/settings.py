@@ -189,9 +189,37 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = '/static/'
-# キャッシュバスター: 環境変数で渡せばデプロイのたびに変わる。
-# 未指定なら BASE_DIR の mtime を使い、ファイル変更時に自動的に更新される。
-STATIC_VERSION = os.environ.get('STATIC_VERSION') or str(int(BASE_DIR.stat().st_mtime))
+
+# v1.19.0: STATIC_VERSION (キャッシュバスター + PWA SW CACHE_VERSION) の計算
+# 旧実装は BASE_DIR の mtime を使っていたが、ファイル編集ではディレクトリ mtime が
+# 変化しない (ファイル追加/削除時のみ変化) ため、CSS 修正だけのデプロイで
+# STATIC_VERSION が変わらず、ユーザー (特に PWA) が古い CSS を見続ける問題があった。
+# 優先順位:
+#   1. 環境変数 STATIC_VERSION (CI/CD で git SHA を渡す等)
+#   2. git rev-parse --short HEAD (Docker image に .git があれば)
+#   3. static/css/style.css の mtime (実際に変更されるファイル)
+#   4. BASE_DIR mtime (最終 fallback)
+def _compute_static_version() -> str:
+    if env := os.environ.get('STATIC_VERSION'):
+        return env
+    try:
+        import subprocess
+        sha = subprocess.check_output(
+            ['git', 'rev-parse', '--short', 'HEAD'],
+            cwd=BASE_DIR.parent if (BASE_DIR.parent / '.git').exists() else BASE_DIR,
+            stderr=subprocess.DEVNULL,
+            timeout=2,
+        ).decode().strip()
+        if sha:
+            return sha
+    except Exception:
+        pass
+    css = BASE_DIR / 'static' / 'css' / 'style.css'
+    if css.exists():
+        return str(int(css.stat().st_mtime))
+    return str(int(BASE_DIR.stat().st_mtime))
+
+STATIC_VERSION = _compute_static_version()
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STORAGES = {

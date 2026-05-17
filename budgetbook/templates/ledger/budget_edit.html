@@ -2,10 +2,10 @@
 {% load ledger_extras %}
 
 {% block title %}BudgetBook | {{ target_month|date:'Y年n月' }} 予算{% endblock %}
-{% block route %}dashboard{% endblock %}
+{% block route %}settings{% endblock %}
 
 {% block content %}
-  <div class="annual-layout">
+  <div class="settings-layout">
     <div class="toolbar">
       <div>
         <h1 class="page-title">{{ target_month|date:'Y年n月' }} の月次予算</h1>
@@ -16,7 +16,7 @@
         {% if next_month_param %}
           <a href="{% url 'ledger:budget_edit' %}?month={{ next_month_param }}" class="btn btn--ghost">次月 →</a>
         {% endif %}
-        <a href="{% url 'ledger:dashboard' %}?month={{ month_param }}" class="btn btn--ghost">家計簿に戻る</a>
+        <a href="{% url 'ledger:settings' %}" class="btn btn--ghost">← 設定に戻る</a>
       </div>
     </div>
 

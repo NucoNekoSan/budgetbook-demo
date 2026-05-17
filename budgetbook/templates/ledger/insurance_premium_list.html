@@ -42,37 +42,38 @@
       </form>
 
       <h2 class="section-title" style="margin-top: 24px;">生命保険料控除（合算上限 ¥120,000）</h2>
-      <table class="table">
+      <div class="meta" style="margin-bottom: 8px;">列「新契約」「旧契約」は支払額。</div>
+      <table class="table table--compact">
         <thead>
           <tr>
             <th>区分</th>
-            <th class="num">新契約 支払額</th>
-            <th class="num">旧契約 支払額</th>
+            <th class="num">新契約</th>
+            <th class="num">旧契約</th>
             <th class="num">控除額</th>
           </tr>
         </thead>
         <tbody>
           {% for r in life_per_category %}
             <tr>
-              <td>{{ r.label }}</td>
-              <td class="num">{{ r.new_paid|yen }}</td>
-              <td class="num">{{ r.old_paid|yen }}</td>
-              <td class="num">{{ r.deduction|yen }}</td>
+              <td data-label="区分">{{ r.label }}</td>
+              <td class="num" data-label="新契約">{{ r.new_paid|yen }}</td>
+              <td class="num" data-label="旧契約">{{ r.old_paid|yen }}</td>
+              <td class="num" data-label="控除額">{{ r.deduction|yen }}</td>
             </tr>
           {% endfor %}
         </tbody>
         <tfoot>
           <tr>
-            <td><strong>3 枠合計</strong></td>
-            <td class="num">-</td>
-            <td class="num">-</td>
-            <td class="num"><strong>{{ summary.life.raw_sum|yen }}</strong></td>
+            <td data-label="区分"><strong>3 枠合計</strong></td>
+            <td class="num" data-label="新契約">-</td>
+            <td class="num" data-label="旧契約">-</td>
+            <td class="num" data-label="控除額"><strong>{{ summary.life.raw_sum|yen }}</strong></td>
           </tr>
           <tr>
-            <td><strong>生命保険料控除（上限 12 万円 適用後）</strong></td>
-            <td class="num">-</td>
-            <td class="num">-</td>
-            <td class="num"><strong>{{ summary.life.total|yen }}</strong></td>
+            <td data-label="区分"><strong>生命保険料控除（上限 12 万円 適用後）</strong></td>
+            <td class="num" data-label="新契約">-</td>
+            <td class="num" data-label="旧契約">-</td>
+            <td class="num" data-label="控除額"><strong>{{ summary.life.total|yen }}</strong></td>
           </tr>
         </tfoot>
       </table>

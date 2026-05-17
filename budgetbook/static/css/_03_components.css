@@ -1,0 +1,460 @@
+/* ===== Toolbar / Buttons ===== */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.toolbar--form {
+  margin-bottom: 18px;
+}
+.button-row, .inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text);
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn:hover { filter: brightness(0.97); }
+.btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.btn--sm {
+  padding: 6px 10px;
+  font-size: var(--fs-small);
+  border-radius: 8px;
+}
+.btn--lg {
+  padding: 13px 22px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  border-radius: 14px;
+  min-height: 48px;
+}
+.form-grid__actions--primary {
+  justify-content: flex-start;
+  align-items: center;
+  margin-top: 8px;
+  gap: 12px;
+}
+.form-grid__actions--primary .btn--lg {
+  flex: 1 1 auto;
+  max-width: 240px;
+}
+.btn--primary {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+.btn--danger {
+  background: transparent;
+  color: var(--danger);
+  border-color: transparent;
+}
+.btn--danger:hover {
+  background: var(--danger-soft);
+  border-color: var(--danger-soft);
+}
+.btn--soft {
+  background: var(--panel-soft);
+  color: var(--muted-strong);
+  border-color: var(--line);
+}
+.btn--soft:hover {
+  background: var(--line);
+  color: var(--text);
+}
+.btn--ghost {
+  background: transparent;
+}
+
+/* ===== Form ===== */
+.form-grid {
+  display: grid;
+  gap: 14px;
+}
+.form-grid__actions {
+  margin-top: 8px;
+}
+.field label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+.form-input {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line-strong);
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  transition: border-color var(--t-fast), box-shadow var(--t-fast);
+}
+/* v1.18.6: iOS Safari は <input type="date"> に intrinsic min-width (≈250-300px) を
+   付けるため、form-panel の max-width:416px を破って grid column を膨張させ、
+   dashboard 側 (cards--3 等) を圧迫する。明示的に min-width:0 で抑制。 */
+.field {
+  min-width: 0;
+}
+.field input.form-input,
+.field select.form-input,
+.field textarea.form-input {
+  min-width: 0;
+  max-width: 100%;
+}
+.form-grid {
+  min-width: 0;
+}
+#form-panel * {
+  min-width: 0;
+}
+
+/* v1.18.6: iOS Safari の <input type="date"> ネイティブスタイル正規化。
+   デフォルトでは:
+   - 値が中央寄せ (他の input/select は左寄せ)
+   - 高さが他の input と微妙にズレる
+   - 専用フォント (system) が当たる
+   これを他の form-input と完全に揃える。 */
+input[type="date"].form-input,
+input[type="datetime-local"].form-input,
+input[type="month"].form-input,
+input[type="time"].form-input {
+  -webkit-appearance: none;
+  appearance: none;
+  text-align: left;
+  font: inherit;
+  line-height: 1.4;
+  height: auto;
+  /* iOS は input 内部に余計な padding を入れることがあるため明示 */
+  padding: 12px 14px;
+  background-color: var(--panel);
+  /* Safari モバイルでの拡大ズーム防止 (16px 未満だと自動ズームする) */
+  font-size: max(1rem, 16px);
+  /* date input が空でも高さを保つ */
+  min-height: 48px;
+  box-sizing: border-box;
+}
+/* iOS の date picker indicator (▾ アイコン等) のスペース確保 + 装飾 */
+input[type="date"].form-input::-webkit-date-and-time-value {
+  text-align: left;
+}
+/* Safari モバイル: input フォーカス時の自動ズーム防止 (全 form-input 統一) */
+@media (max-width: 1024px) {
+  .form-input,
+  select.form-input,
+  textarea.form-input {
+    font-size: max(1rem, 16px);
+  }
+}
+.form-input:hover {
+  border-color: var(--muted);
+}
+.form-input:focus-visible {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-soft);
+}
+.form-input:focus:not(:focus-visible) {
+  outline: none;
+}
+.form-input::placeholder {
+  color: var(--muted);
+  opacity: 0.7;
+}
+.form-footer {
+  margin-top: 18px;
+}
+.errors {
+  list-style: none;
+  padding: 10px 12px;
+  margin: 8px 0 0;
+  background: var(--danger-soft);
+  color: var(--danger);
+  border-radius: 12px;
+}
+.preflight-box {
+  margin-top: 18px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+.preflight-box--ok {
+  background: var(--success-soft);
+  border-color: #bbf7d0;
+}
+.preflight-box--warning {
+  background: var(--warning-soft);
+  border-color: #fde68a;
+}
+.preflight-box__title {
+  margin: 0 0 8px;
+  font-size: 1rem;
+}
+.preflight-list {
+  margin: 10px 0;
+  padding-left: 20px;
+}
+.preflight-list li {
+  margin: 6px 0;
+}
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.status-pill--ok {
+  background: var(--success-soft);
+  color: var(--success);
+}
+.status-pill--warning {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+/* ===== Table ===== */
+.table-wrap {
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  max-width: 100%;
+}
+.table-wrap--spaced {
+  margin-top: 18px;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+th, td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: middle;
+}
+th {
+  background: var(--panel-soft);
+  font-size: var(--fs-small);
+  color: var(--muted-strong);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+tr:last-child td { border-bottom: 0; }
+tbody tr:hover td { background: var(--panel-soft); }
+tbody tr:focus-within td { background: var(--primary-soft); }
+.amount-income { color: var(--success); font-weight: 700; }
+.amount-expense { color: var(--danger); font-weight: 700; }
+.amount-neutral { color: var(--muted); font-weight: 700; }
+
+/* ===== Inline edit row ===== */
+.inline-edit-placeholder td { padding: 0; border-bottom: 0; }
+.inline-edit-row td {
+  background: var(--surface-soft, #f8fafc);
+  padding: 14px;
+}
+.inline-edit-form {
+  max-width: 100%;
+}
+.inline-edit-form__title {
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+@media (max-width: 768px) {
+  .inline-edit-row td { padding: 10px; }
+}
+
+/* ===== Chip ===== */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: var(--fs-meta);
+  font-weight: 700;
+  white-space: nowrap;          /* 縦書き化を防ぐ */
+  word-break: keep-all;          /* 念押し: 単語の中で改行させない */
+  writing-mode: horizontal-tb;   /* 念押し: 横書き */
+  width: max-content;            /* 内容に合わせて自動拡張 */
+  min-width: 56px;
+  line-height: 1.4;
+  flex-shrink: 0;                /* 親 flex/grid で潰されないように */
+}
+.chip--income { background: var(--success-soft); color: var(--success); }
+.chip--expense { background: var(--danger-soft); color: var(--danger); }
+.chip--neutral { background: var(--panel-soft); color: var(--muted-strong); border: 1px solid var(--line); }
+
+/* ===== Stack / List ===== */
+.stack { display: grid; gap: 16px; }
+.list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+.list-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel-soft);
+}
+
+/* ===== Empty / Helper / Meta ===== */
+.empty {
+  padding: 22px;
+  border-radius: 14px;
+  background: var(--panel-soft);
+  border: 1px dashed var(--line-strong);
+  color: var(--muted-strong);
+  text-align: center;
+}
+.empty__title {
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.empty__hint {
+  font-size: var(--fs-small);
+  color: var(--muted);
+}
+.helper {
+  padding: 14px;
+  border-radius: 14px;
+  background: var(--warning-soft);
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+.meta {
+  font-size: var(--fs-small);
+  color: var(--muted-strong);
+}
+/* インラインで chip の隣に並べる小さな注釈 */
+.meta--inline {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: var(--fs-meta);
+  white-space: nowrap;
+}
+.section-title {
+  margin: 0 0 10px;
+  font-size: var(--fs-h2);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.section-title--tight {
+  margin-bottom: 4px;
+}
+.page-title {
+  margin: 0 0 6px;
+  font-size: var(--fs-h1);
+  font-weight: 800;
+  letter-spacing: -0.015em;
+}
+
+/* ===== Flash ===== */
+@keyframes flash-fade {
+  0%   { opacity: 1; max-height: 200px; padding: 12px 14px; margin-bottom: 16px; border-width: 1px; }
+  88%  { opacity: 1; max-height: 200px; padding: 12px 14px; margin-bottom: 16px; border-width: 1px; }
+  100% { opacity: 0; max-height: 0;     padding: 0;         margin-bottom: 0;    border-width: 0; }
+}
+.flash__message {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--success-soft);
+  color: var(--success);
+  border: 1px solid #bbf7d0;
+  overflow: hidden;
+  animation: flash-fade 4s ease-in-out forwards;
+}
+
+/* ===== Filter bar ===== */
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: end;
+  margin: 12px 0;
+}
+.filter-bar__field {
+  min-width: 120px;
+}
+.filter-bar__field--grow {
+  flex: 1;
+  min-width: 140px;
+}
+.filter-bar__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.filter-bar__form {
+
+  display: inline;
+}
+.filter-status {
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  background: var(--panel-soft);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+/* ===== Pagination ===== */
+.pagination {
+  margin-top: 12px;
+  justify-content: center;
+}
+.pagination__current {
+  align-self: center;
+}
+
+/* ===== Delete confirm ===== */
+.delete-preview {
+  margin: 16px 0;
+}
+
+/* ===== Chart ===== */
+.chart-container {
+  position: relative;
+  height: 280px;
+}
+.chart-container--scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  height: 280px;
+}
+.chart-container--scroll .chart-scroll-inner {
+  position: relative;
+  height: 100%;
+  min-width: 100%;
+}
+/* Legacy CSS conic-gradient pie classes — kept temporarily for backward compat,
+   removed from templates in favor of Chart.js doughnut for visual consistency. */
+

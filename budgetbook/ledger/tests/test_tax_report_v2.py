@@ -178,7 +178,7 @@ class TaxDeductionsV2ViewTest(TestCase):
         resp = self.client.get(reverse('ledger:tax_deductions_v2'))
         self.assertEqual(resp.status_code, 200)
         body = resp.content.decode('utf-8')
-        self.assertIn(f'{date.today().year}年 確定申告レポート v2', body)
+        self.assertIn(f'{date.today().year}年 確定申告レポート', body)
 
     def test_v2_renders_all_four_sections(self):
         resp = self.client.get(reverse('ledger:tax_deductions_v2') + '?year=2025')

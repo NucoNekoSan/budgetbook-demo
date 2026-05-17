@@ -22,7 +22,10 @@ class SettingsPageTest(TestCase):
         resp = self.client.get(reverse('ledger:settings'))
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, '設定')
-        self.assertContains(resp, '家計簿に戻る')
+        # v1.19.0: グローバルナビ経由で家計簿に戻る (戻るボタン廃止)
+        self.assertContains(resp, '家計簿</a>')
+        # サブリンクナビの存在確認 (サイドバー廃止 → ヘッダー pill 行に統一)
+        self.assertContains(resp, 'settings-sublinks')
 
     def test_settings_page_shows_accounts_and_categories(self):
         resp = self.client.get(reverse('ledger:settings'))

@@ -8,10 +8,19 @@
  *
  * Caches are versioned. activate purges old caches.
  */
-const CACHE_VERSION = 'bb-v1.9.0-1';
+/* CACHE_VERSION は ledger/views/pwa.py が配信時に '__CACHE_VERSION__' を
+   STATIC_VERSION で置換する。直接 ファイルを読み込むと placeholder のままなので、
+   必ず /sw.js (Django view 経由) からアクセスすること。
+   placeholder 文字列を変更すると pwa.py + test_pwa_sw_view.py の両方の更新が必須。 */
+const CACHE_VERSION = '__CACHE_VERSION__';
 const APP_SHELL = [
   '/offline',
-  '/static/css/style.css',
+  // v1.19.0: style.css は 5 ファイル分割。全て precache する。
+  '/static/css/_01_base.css',
+  '/static/css/_02_layout_cards.css',
+  '/static/css/_03_components.css',
+  '/static/css/_04_pages_responsive.css',
+  '/static/css/_05_features_v119.css',
   '/static/js/htmx_config.js',
   '/static/js/theme_toggle.js',
   '/static/icons/icon.svg',
@@ -22,6 +31,15 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_VERSION).then((cache) => cache.addAll(APP_SHELL)).then(() => self.skipWaiting())
   );
+});
+
+// v1.18.6: pwa_register.js から SKIP_WAITING メッセージを受けたら即 activate.
+// updatefound 検知 → postMessage → activate → controllerchange → reload の連鎖で
+// 古いキャッシュに残されたユーザーを自動的に最新版へ移行させる。
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener('activate', (event) => {

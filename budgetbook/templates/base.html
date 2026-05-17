@@ -6,7 +6,12 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}BudgetBook{% endblock %}</title>
-    <link rel="stylesheet" href="{% static 'css/style.css' %}?v={{ STATIC_VERSION }}">
+    {# v1.19.0: style.css を機能別 5 ファイルに分割。cascade 順序を厳守するため必ずこの順序で読み込むこと。 #}
+    <link rel="stylesheet" href="{% static 'css/_01_base.css' %}?v={{ STATIC_VERSION }}">
+    <link rel="stylesheet" href="{% static 'css/_02_layout_cards.css' %}?v={{ STATIC_VERSION }}">
+    <link rel="stylesheet" href="{% static 'css/_03_components.css' %}?v={{ STATIC_VERSION }}">
+    <link rel="stylesheet" href="{% static 'css/_04_pages_responsive.css' %}?v={{ STATIC_VERSION }}">
+    <link rel="stylesheet" href="{% static 'css/_05_features_v119.css' %}?v={{ STATIC_VERSION }}">
     <meta name="color-scheme" content="light dark">
     <meta name="theme-color" content="#2563eb">
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232563eb'/%3E%3Ctext x='50%25' y='62%25' font-size='44' text-anchor='middle' fill='white' font-family='-apple-system,Segoe UI,sans-serif' font-weight='800'%3EB%3C/text%3E%3C/svg%3E">
@@ -23,6 +28,7 @@
     <script nonce="{{ csp_nonce }}" src="{% static 'js/progress_bars.js' %}" defer></script>
     <script nonce="{{ csp_nonce }}" src="{% static 'js/keyboard_shortcuts.js' %}" defer></script>
     <script nonce="{{ csp_nonce }}" src="{% static 'js/pwa_register.js' %}" defer></script>
+    <script nonce="{{ csp_nonce }}" src="{% static 'js/mobile_nav.js' %}" defer></script>
     {% block extra_js %}{% endblock %}
   </head>
   <body hx-headers='{"x-csrftoken": "{{ csrf_token }}"}' data-route="{% block route %}{% endblock %}">
@@ -39,12 +45,37 @@
     <header class="site-header">
       <div class="site-header__inner">
         <a href="{% url 'ledger:dashboard' %}" class="brand">BudgetBook</a>
-        <nav class="site-nav" aria-label="主要ナビゲーション">
+        <button type="button"
+                class="nav-toggle"
+                aria-controls="primary-nav"
+                aria-expanded="false"
+                aria-label="メニューを開く"
+                data-nav-toggle>
+          <span class="nav-toggle__bar" aria-hidden="true"></span>
+          <span class="nav-toggle__bar" aria-hidden="true"></span>
+          <span class="nav-toggle__bar" aria-hidden="true"></span>
+        </button>
+        <div class="nav-backdrop" data-nav-backdrop aria-hidden="true"></div>
+        <nav class="site-nav" id="primary-nav" aria-label="主要ナビゲーション">
+          <button type="button"
+                  class="nav-close"
+                  aria-label="メニューを閉じる"
+                  data-nav-toggle>✕ 閉じる</button>
           <a href="{% url 'ledger:dashboard' %}" class="site-nav__link" data-route-link="dashboard">家計簿</a>
           <a href="{% url 'ledger:annual' %}" class="site-nav__link" data-route-link="annual">年間</a>
           <a href="{% url 'ledger:expense_breakdown' %}" class="site-nav__link" data-route-link="expense_breakdown">支出構成</a>
           <a href="{% url 'ledger:balance_sheet' %}" class="site-nav__link" data-route-link="balance_sheet">資産</a>
           <a href="{% url 'ledger:accounting' %}" class="site-nav__link" data-route-link="accounting">締め・照合</a>
+          <details class="site-nav__dropdown" data-route-group="reports">
+            <summary class="site-nav__link site-nav__dropdown-toggle" aria-haspopup="menu">レポート <span aria-hidden="true">▾</span></summary>
+            <div class="site-nav__dropdown-menu" role="menu">
+              <a href="{% url 'ledger:tax_deductions_v2' %}" class="site-nav__dropdown-item" role="menuitem">📑 確定申告レポート</a>
+              <div class="site-nav__dropdown-sep" role="separator"></div>
+              <a href="{% url 'ledger:medical_expense_list' %}" class="site-nav__dropdown-item" role="menuitem">💊 医療費控除明細</a>
+              <a href="{% url 'ledger:insurance_premium_list' %}" class="site-nav__dropdown-item" role="menuitem">🛡️ 保険料控除</a>
+              <a href="{% url 'ledger:income_snapshot_list' %}" class="site-nav__dropdown-item" role="menuitem">📊 年次所得スナップショット</a>
+            </div>
+          </details>
           <a href="{% url 'ledger:settings' %}" class="site-nav__link" data-route-link="settings">設定</a>
           <button type="button" class="site-nav__theme" data-theme-toggle aria-label="テーマ切替">🖥 自動</button>
           <form method="post" action="{% url 'logout' %}" class="site-nav__logout">

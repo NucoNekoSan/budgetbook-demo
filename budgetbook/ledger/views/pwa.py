@@ -53,6 +53,12 @@ def _sw_path() -> Path:
     return Path(settings.BASE_DIR) / 'static' / 'js' / 'sw.js'
 
 
+# v1.19.0: sw.js 側の placeholder。E1 監査対応で literal string replace から
+# placeholder 方式へ移行。sw.js を編集しても置換ロジックが silently 壊れない。
+# テスト (test_pwa_sw_view.py) が 「placeholder が残存していないこと」 を保証する。
+SW_CACHE_VERSION_PLACEHOLDER = '__CACHE_VERSION__'
+
+
 @require_GET
 @cache_control(max_age=0, no_cache=True, no_store=True, must_revalidate=True)
 def service_worker(request: HttpRequest) -> HttpResponse:
@@ -60,6 +66,11 @@ def service_worker(request: HttpRequest) -> HttpResponse:
         body = _sw_path().read_text(encoding='utf-8')
     except FileNotFoundError:
         return HttpResponse('// sw.js not found', status=404, content_type='application/javascript')
+    # SW の CACHE_VERSION を STATIC_VERSION で動的に置換することで、
+    # デプロイのたびに SW がバイト変化 → ブラウザが新 SW を取得 → activate で
+    # 古い caches.delete を実行 → ユーザーは何もせずに新しい CSS/JS が反映される。
+    static_version = getattr(settings, 'STATIC_VERSION', 'dev')
+    body = body.replace(SW_CACHE_VERSION_PLACEHOLDER, f'bb-{static_version}')
     # Service-Worker は staticfiles 経由でも配信できるが、root scope を取るため view 経由で返す。
     resp = HttpResponse(body, content_type='application/javascript')
     resp['Service-Worker-Allowed'] = '/'

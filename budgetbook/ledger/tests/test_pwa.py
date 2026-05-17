@@ -3,8 +3,9 @@ from __future__ import annotations
 
 import json
 
+from django.conf import settings
 from django.contrib.auth.models import User
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 
@@ -58,6 +59,42 @@ class ServiceWorkerTest(TestCase):
         self.assertIn('CACHE_VERSION', body)
         self.assertIn("'install'", body)
         self.assertIn("'fetch'", body)
+
+    # v1.19.0: E1+Q1 — SW の CACHE_VERSION placeholder 注入の検証。
+    # これらが落ちたら PWA のキャッシュ自動更新フローが壊れている可能性が高い。
+    def test_sw_body_has_no_unreplaced_placeholder(self):
+        """配信時に __CACHE_VERSION__ プレースホルダが必ず置換されること。
+        sw.js の placeholder 文字列を変更したのに pwa.py を更新し忘れた場合に
+        ここで検出する。"""
+        resp = self.client.get('/sw.js')
+        body = resp.content.decode('utf-8')
+        self.assertNotIn('__CACHE_VERSION__', body,
+                         '__CACHE_VERSION__ placeholder が SW レスポンスに残存。'
+                         'pwa.py の SW_CACHE_VERSION_PLACEHOLDER と sw.js の'
+                         '実値が乖離していないか確認')
+
+    def test_sw_body_contains_injected_static_version(self):
+        """配信される SW body に bb-<STATIC_VERSION> の形式で値が注入されること。"""
+        resp = self.client.get('/sw.js')
+        body = resp.content.decode('utf-8')
+        expected = f"const CACHE_VERSION = 'bb-{settings.STATIC_VERSION}';"
+        self.assertIn(expected, body)
+
+    @override_settings(STATIC_VERSION='test-abc123')
+    def test_sw_body_reflects_static_version_change(self):
+        """STATIC_VERSION を変えると SW body も変わること
+        (デプロイのたびに SW がバイト変化 → 自動更新が走る前提条件)。"""
+        resp = self.client.get('/sw.js')
+        body = resp.content.decode('utf-8')
+        self.assertIn("const CACHE_VERSION = 'bb-test-abc123';", body)
+
+    def test_sw_no_cache_headers(self):
+        """SW 本体は no-cache 配信 (ブラウザがバージョン差分を即検知できるよう)。"""
+        resp = self.client.get('/sw.js')
+        cache_control = resp.get('Cache-Control', '')
+        self.assertIn('no-cache', cache_control)
+        self.assertIn('no-store', cache_control)
+        self.assertIn('must-revalidate', cache_control)
 
 
 class OfflineTest(TestCase):
