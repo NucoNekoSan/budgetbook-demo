@@ -1,0 +1,48 @@
+name: CodeQL
+
+# 公開 repo 向け無料の静的セキュリティ解析 (SQL injection / XSS / path traversal / 認証バグ等)。
+# 結果は Security タブの "Code scanning alerts" に表示される。
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  schedule:
+    # 週 1 回 (月曜 03:00 UTC = 12:00 JST) に再スキャンし、新規ルール対応を取り込む
+    - cron: '0 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  security-events: write   # CodeQL の解析結果アップロードに必要
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: CodeQL (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ['python', 'javascript-typescript']
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          # security-extended: より広範な質の高いセキュリティクエリを有効化
+          queries: security-extended
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
