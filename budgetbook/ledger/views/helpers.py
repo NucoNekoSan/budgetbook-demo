@@ -12,6 +12,19 @@ from ..forms import TransactionForm, TransferForm
 from ..models import AuditLog, MonthlyClosing, Transaction, Transfer
 
 audit_logger = logging.getLogger('budgetbook.audit')
+
+
+def _sanitize_for_log(value: str | None) -> str:
+    """log injection 対策: 制御文字 (CR/LF/TAB 等) を空白に置換し、長さ制限。
+    JSON formatter が改行を escape するので実害は低いが、CodeQL py/log-injection
+    対応 + plain formatter / 他の log 取扱いツールにも安全。"""
+    if not value:
+        return ''
+    # ASCII 制御文字 (0x00-0x1F + 0x7F) を空白に
+    cleaned = ''.join(' ' if (ord(c) < 0x20 or ord(c) == 0x7F) else c for c in str(value))
+    return cleaned[:200]
+
+
 from ..services.dashboard import get_dashboard_context
 from ..services.dates import (
     clamp_future_month,
@@ -54,18 +67,21 @@ def record_audit(
         summary=summary[:200],
         metadata=audit_metadata,
     )
+    # log injection 対策: 制御文字を除去してから渡す (CodeQL py/log-injection 対応)。
+    # username / IP は監査識別子なので意図的に記録 (CodeQL の sensitive-data 警告は
+    # audit log の本来用途として false positive 扱い、ただし制御文字 sanitize は実施)。
     audit_logger.info(
         'audit',
         extra={
             'event': 'audit',
-            'action': action,
+            'action': _sanitize_for_log(action),
             'target_model': target.__class__.__name__,
-            'target_id': resolved_target_id,
+            'target_id': _sanitize_for_log(resolved_target_id),
             'user_id': getattr(user, 'pk', None),
-            'username': getattr(user, 'username', None),
-            'ip': audit_metadata.get('ip'),
-            'user_agent': audit_metadata.get('user_agent'),
-            'summary': summary[:200],
+            'username': _sanitize_for_log(getattr(user, 'username', None)),
+            'ip': _sanitize_for_log(audit_metadata.get('ip')),
+            'user_agent': _sanitize_for_log(audit_metadata.get('user_agent')),
+            'summary': _sanitize_for_log(summary),
         },
     )
 

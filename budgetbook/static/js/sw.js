@@ -36,7 +36,17 @@ self.addEventListener('install', (event) => {
 // v1.18.6: pwa_register.js から SKIP_WAITING メッセージを受けたら即 activate.
 // updatefound 検知 → postMessage → activate → controllerchange → reload の連鎖で
 // 古いキャッシュに残されたユーザーを自動的に最新版へ移行させる。
+// v1.19.x: CodeQL js/missing-origin-check 対応 — event.source の origin を明示的検証
+// (SW scope は同一 origin に限定されるが、defense in depth として実施)。
 self.addEventListener('message', (event) => {
+  if (event.source && event.source.url) {
+    try {
+      const srcOrigin = new URL(event.source.url).origin;
+      if (srcOrigin !== self.location.origin) return;
+    } catch (_) {
+      return;
+    }
+  }
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }

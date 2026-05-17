@@ -31,8 +31,10 @@ def healthz(request: HttpRequest) -> HttpResponse:
         if not row or row[0] != 1:
             return JsonResponse({'status': 'error', 'detail': 'unexpected SELECT 1 result'}, status=500)
     except DatabaseError as exc:
+        # 詳細はサーバ側 log にのみ残し、レスポンスは generic に。
+        # /healthz は未認証で公開されるため、DB schema や SQL detail が漏れないよう。
         health_logger.error('healthz_db_select_failed', extra={'event': 'healthz', 'detail': str(exc)[:200]})
-        return JsonResponse({'status': 'error', 'detail': str(exc)[:120]}, status=500)
+        return JsonResponse({'status': 'error', 'detail': 'db_select_failed'}, status=500)
 
     payload = {'status': 'ok'}
 
@@ -50,8 +52,9 @@ def healthz(request: HttpRequest) -> HttpResponse:
         except _Rollback:
             payload['db_write'] = 'ok'
         except DatabaseError as exc:
+            # 詳細はサーバ側 log にのみ。レスポンスは generic (CodeQL py/stack-trace-exposure 対応)
             health_logger.error('healthz_db_write_failed', extra={'event': 'healthz', 'detail': str(exc)[:200]})
-            return JsonResponse({'status': 'error', 'detail': f'db_write: {str(exc)[:120]}'}, status=500)
+            return JsonResponse({'status': 'error', 'detail': 'db_write_failed'}, status=500)
 
         # 会計整合性スポット: 直近 1 件のみチェック（多件は重い）
         latest = list(MonthlyClosing.objects.order_by('-month')[:1])
