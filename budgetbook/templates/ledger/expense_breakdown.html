@@ -4,7 +4,7 @@
 
 {% block title %}BudgetBook | 支出構成{% endblock %}
 {% block route %}expense_breakdown{% endblock %}
-{% block extra_js %}<script nonce="{{ csp_nonce }}" src="{% static 'js/expense_chart.js' %}?v=20260502-income-ratio-retry" defer></script>{% endblock %}
+{% block extra_js %}<script nonce="{{ csp_nonce }}" src="{% static 'js/expense_chart.js' %}?v=20260525-expense-audit" defer></script>{% endblock %}
 
 {% block content %}
   <div class="annual-layout">
@@ -17,43 +17,90 @@
       </div>
     </div>
 
+    <div class="expense-kpi-grid" aria-label="{{ target_month|date:'Y年n月' }}の支出構成主要指標">
+      <div class="card card--income">
+        <div class="card__label">記録済み収入</div>
+        <div class="card__value">{{ monthly_income|yen }}</div>
+      </div>
+      <div class="card card--expense">
+        <div class="card__label">合計支出</div>
+        <div class="card__value">{{ monthly_total|yen }}</div>
+      </div>
+      <div class="card {% if is_over_spent %}card--net-negative{% else %}card--net-positive{% endif %}">
+        <div class="card__label">収入比</div>
+        <div class="card__value">{% if has_income %}{{ spending_to_income_pct }}%{% else %}計算不可{% endif %}</div>
+      </div>
+      <div class="card">
+        <div class="card__label">上位カテゴリ</div>
+        <div class="card__value card__value--text">
+          {% if top_monthly %}{{ top_monthly.label }} {{ top_monthly.pct }}%{% else %}支出なし{% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel__body">
+        <h2 class="section-title">表示基準</h2>
+        <ul class="expense-basis-list">
+          <li>集計は取引日の発生日ベースです。カード利用日と引落日が異なる場合、引落月ではなく利用月に含まれます。</li>
+          <li>収入はこのアプリに記録済みの収入カテゴリ合計です。手取り・還付・ポイント等の扱いは入力ルールに依存します。</li>
+          <li>割合は小数1桁で四捨五入しているため、内訳合計が100%にならない場合があります。</li>
+        </ul>
+      </div>
+    </div>
+
     {# ===== 収入に対する支出比率(母数=月間収入) ===== #}
     <div class="panel">
       <div class="panel__body">
         <div class="toolbar">
           <h2 class="section-title">{{ target_month|date:"Y年n月" }} 収入に対する支出比率</h2>
         </div>
-        <div class="meta">母数: 月間収入 {{ monthly_income|yen }}</div>
+        <div class="meta">母数: 記録済み月間収入 {{ monthly_income|yen }}</div>
 
         {% if not has_income %}
           <div class="empty">この月は収入が記録されていないため、収入比率は計算できません。</div>
         {% else %}
+          <div class="expense-income-meter">
+            <div class="expense-income-meter__header">
+              <strong>支出 {{ monthly_total|yen }}</strong>
+              <span class="{% if is_over_spent %}amount-expense{% else %}amount-income{% endif %} tabular-num">{{ spending_to_income_pct }}%</span>
+            </div>
+            <meter
+              class="expense-income-meter__bar"
+              min="0"
+              max="{{ monthly_income }}"
+              value="{{ income_meter_value }}"
+              aria-label="{{ target_month|date:'Y年n月' }}の記録済み収入に対する支出比率"
+            >{{ spending_to_income_pct }}%</meter>
+            <div class="expense-income-meter__scale" aria-hidden="true">
+              <span>0%</span>
+              <span>100%</span>
+            </div>
+          </div>
           {% if is_over_spent %}
             <div class="helper u-helper-overspent">
               ⚠ 支出が収入を超えています。超過額 {{ overspent_amount|yen }}（収入比 100% 超過）。
             </div>
           {% endif %}
-          <div class="chart-container chart-container--pie">
-            <canvas id="income-ratio-pie" role="img" aria-label="収入に対する支出比率の円グラフ。詳細な内訳は下のテーブルで確認できます。"></canvas>
-          </div>
-          <div class="table-wrap">
-            <table>
+          <div class="table-wrap table-wrap--spaced">
+            <table class="table table--compact">
+              <caption class="sr-only">{{ target_month|date:"Y年n月" }}の収入に対する支出比率内訳</caption>
               <thead>
-                <tr><th>項目</th><th>金額</th><th>収入比</th></tr>
+                <tr><th scope="col">項目</th><th scope="col" class="num">金額</th><th scope="col" class="num">収入比</th></tr>
               </thead>
               <tbody>
                 {% for r in income_ratio_rows %}
                   <tr>
-                    <td><strong>{{ r.label }}</strong>{% if r.kind == 'group' %} <span class="chip">グループ</span>{% endif %}</td>
-                    <td class="amount-expense">{{ r.total|yen }}</td>
-                    <td>{{ r.pct }}%</td>
+                    <td data-label="項目"><strong>{{ r.label }}</strong>{% if r.kind == 'group' %} <span class="chip">グループ</span>{% endif %}</td>
+                    <td data-label="金額" class="amount-expense num">{{ r.total|yen }}</td>
+                    <td data-label="収入比" class="num">{{ r.pct }}%</td>
                   </tr>
                 {% endfor %}
                 {% if not is_over_spent and remainder > 0 %}
                   <tr>
-                    <td><strong>残額</strong></td>
-                    <td>{{ remainder|yen }}</td>
-                    <td>{{ remainder_pct }}%</td>
+                    <td data-label="項目"><strong>残額</strong></td>
+                    <td data-label="金額" class="num">{{ remainder|yen }}</td>
+                    <td data-label="収入比" class="num">{{ remainder_pct }}%</td>
                   </tr>
                 {% endif %}
               </tbody>
@@ -70,16 +117,17 @@
         <h2 class="section-title">{{ target_month|date:"Y年n月" }} 大分類サマリー</h2>
         <div class="meta">食品・日用品 / 住居 / 交通 などの会計大分類で月間支出を俯瞰します。</div>
         <div class="table-wrap u-mt-16">
-          <table>
+          <table class="table table--compact">
+            <caption class="sr-only">{{ target_month|date:"Y年n月" }}の大分類別支出サマリー</caption>
             <thead>
-              <tr><th>大分類</th><th>金額</th><th>割合</th></tr>
+              <tr><th scope="col">大分類</th><th scope="col" class="num">金額</th><th scope="col" class="num">割合</th></tr>
             </thead>
             <tbody>
               {% for r in section_rows %}
                 <tr>
-                  <td><strong>{{ r.label }}</strong></td>
-                  <td class="amount-expense tabular-num">{{ r.total|yen }}</td>
-                  <td class="tabular-num">{{ r.pct }}%</td>
+                  <td data-label="大分類"><strong>{{ r.label }}</strong></td>
+                  <td data-label="金額" class="amount-expense num">{{ r.total|yen }}</td>
+                  <td data-label="割合" class="num">{{ r.pct }}%</td>
                 </tr>
               {% endfor %}
             </tbody>
@@ -95,9 +143,9 @@
         <div class="toolbar">
           <h2 class="section-title">{{ target_month|date:"Y年n月" }} 月間支出構成（支出合計を母数）</h2>
           <div class="button-row">
-            <a href="{% url 'ledger:expense_breakdown' %}?month={{ prev_month_param }}&year={{ year }}" class="btn btn--ghost">&larr; 前月</a>
+            <a href="{% url 'ledger:expense_breakdown' %}?month={{ prev_month_param }}&year={{ prev_month_year }}" class="btn btn--ghost">&larr; 前月</a>
             {% if next_month_param %}
-              <a href="{% url 'ledger:expense_breakdown' %}?month={{ next_month_param }}&year={{ year }}" class="btn btn--ghost">次月 &rarr;</a>
+              <a href="{% url 'ledger:expense_breakdown' %}?month={{ next_month_param }}&year={{ next_month_year }}" class="btn btn--ghost">次月 &rarr;</a>
             {% endif %}
           </div>
         </div>
@@ -111,26 +159,27 @@
             <canvas id="monthly-pie" role="img" aria-label="{{ target_month|date:'Y年n月' }}のカテゴリ別支出構成円グラフ。合計 {{ monthly_total|yen }}。詳細は下のテーブルで確認できます。"></canvas>
           </div>
           <div class="table-wrap">
-            <table>
+            <table class="table table--compact">
+              <caption class="sr-only">{{ target_month|date:"Y年n月" }}のカテゴリ別月間支出構成</caption>
               <thead>
-                <tr><th>カテゴリ</th><th>金額</th><th>割合</th></tr>
+                <tr><th scope="col">カテゴリ</th><th scope="col" class="num">金額</th><th scope="col" class="num">割合</th></tr>
               </thead>
               <tbody>
                 {% for r in monthly_rows %}
                   <tr>
-                    <td>
+                    <td data-label="カテゴリ">
                       <strong>{{ r.label }}</strong>
                       {% if r.kind == 'group' %} <span class="chip">グループ</span>{% endif %}
                     </td>
-                    <td class="amount-expense">{{ r.total|yen }}</td>
-                    <td>{{ r.pct }}%</td>
+                    <td data-label="金額" class="amount-expense num">{{ r.total|yen }}</td>
+                    <td data-label="割合" class="num">{{ r.pct }}%</td>
                   </tr>
                   {% if r.kind == 'group' %}
                     {% for m in r.members %}
                       <tr>
-                        <td class="u-indent-cell"><span class="meta">└ {{ m.category__name }}</span></td>
-                        <td class="meta">{{ m.total|yen }}</td>
-                        <td></td>
+                        <td data-label="カテゴリ" class="u-indent-cell"><span class="meta">└ {{ m.category__name }}</span></td>
+                        <td data-label="金額" class="meta num">{{ m.total|yen }}</td>
+                        <td data-label="割合" class="num"></td>
                       </tr>
                     {% endfor %}
                   {% endif %}
@@ -166,19 +215,20 @@
             <canvas id="yearly-pie" role="img" aria-label="{{ year }}年の年間支出カテゴリ構成円グラフ。合計 {{ yearly_total|yen }}。詳細は下のテーブルで確認できます。"></canvas>
           </div>
           <div class="table-wrap">
-            <table>
+            <table class="table table--compact">
+              <caption class="sr-only">{{ year }}年のカテゴリ別年間支出構成</caption>
               <thead>
-                <tr><th>カテゴリ</th><th>金額</th><th>割合</th></tr>
+                <tr><th scope="col">カテゴリ</th><th scope="col" class="num">金額</th><th scope="col" class="num">割合</th></tr>
               </thead>
               <tbody>
                 {% for r in yearly_rows %}
                   <tr>
-                    <td>
+                    <td data-label="カテゴリ">
                       <strong>{{ r.label }}</strong>
                       {% if r.kind == 'group' %} <span class="chip">グループ</span>{% endif %}
                     </td>
-                    <td class="amount-expense">{{ r.total|yen }}</td>
-                    <td>{{ r.pct }}%</td>
+                    <td data-label="金額" class="amount-expense num">{{ r.total|yen }}</td>
+                    <td data-label="割合" class="num">{{ r.pct }}%</td>
                   </tr>
                 {% endfor %}
               </tbody>
@@ -194,5 +244,4 @@
   {# ===== Chart.js データ ===== #}
   {{ monthly_rows|json_script:"monthly-pie-data" }}
   {{ yearly_rows|json_script:"yearly-pie-data" }}
-  {{ income_ratio_chart|json_script:"income-ratio-pie-data" }}
 {% endblock %}

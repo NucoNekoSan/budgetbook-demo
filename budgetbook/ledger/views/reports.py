@@ -20,7 +20,7 @@ from ..services.dates import (
     parse_year,
     shift_month,
 )
-from ..services.groups import aggregate_with_groups, build_conic_gradient
+from ..services.groups import aggregate_with_groups
 from ..services.tax_report_v2 import build_tax_report_v2
 
 
@@ -68,8 +68,12 @@ def _build_annual_summary(year: int) -> list[dict]:
 @require_http_methods(['GET'])
 def expense_breakdown(request: HttpRequest) -> HttpResponse:
     today = date.today()
-    year = clamp_future_year(parse_year(request.GET.get('year')))
+    requested_year = request.GET.get('year')
     target_month = clamp_future_month(parse_month(request.GET.get('month')))
+    if requested_year:
+        year = clamp_future_year(parse_year(requested_year))
+    else:
+        year = target_month.year
 
     expense_qs = Transaction.objects.filter(category__kind=Category.Kind.EXPENSE)
 
@@ -128,8 +132,12 @@ def expense_breakdown(request: HttpRequest) -> HttpResponse:
     overspent_amount = 0
     remainder = 0
     remainder_pct = 0
+    spending_to_income_pct = 0
+    income_meter_value = 0
 
     if has_income:
+        spending_to_income_pct = round(monthly_total / monthly_income * 100, 1)
+        income_meter_value = min(monthly_total, monthly_income)
         for r in monthly_rows:
             pct = round(r['total'] / monthly_income * 100, 1) if monthly_income else 0
             income_ratio_rows.append({
@@ -165,12 +173,16 @@ def expense_breakdown(request: HttpRequest) -> HttpResponse:
                 })
 
     next_month = shift_month(target_month, 1)
+    prev_month = shift_month(target_month, -1)
+    top_monthly = monthly_rows[0] if monthly_rows else None
     return render(request, 'ledger/expense_breakdown.html', {
         'year': year,
         'target_month': target_month,
         'month_param': month_param(target_month),
-        'prev_month_param': month_param(shift_month(target_month, -1)),
+        'prev_month_param': month_param(prev_month),
+        'prev_month_year': prev_month.year,
         'next_month_param': month_param(next_month) if target_month < clamp_future_month(next_month) else None,
+        'next_month_year': next_month.year,
         'prev_year': year - 1,
         'next_year': year + 1 if year < today.year else None,
         'monthly_rows': monthly_rows,
@@ -182,11 +194,13 @@ def expense_breakdown(request: HttpRequest) -> HttpResponse:
         'has_income': has_income,
         'income_ratio_rows': income_ratio_rows,
         'income_ratio_chart': income_ratio_chart,
-        'income_ratio_pie_style': build_conic_gradient(income_ratio_chart),
         'is_over_spent': is_over_spent,
         'overspent_amount': overspent_amount,
         'remainder': remainder,
         'remainder_pct': remainder_pct,
+        'spending_to_income_pct': spending_to_income_pct,
+        'income_meter_value': income_meter_value,
+        'top_monthly': top_monthly,
     })
 
 

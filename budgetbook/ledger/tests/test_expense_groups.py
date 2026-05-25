@@ -173,9 +173,10 @@ class IncomeRatioTest(TestCase):
         # チャートには残額が含まれる
         chart_labels = [c['label'] for c in resp.context['income_ratio_chart']]
         self.assertIn('残額', chart_labels)
-        # Chart.js canvas 統一後: 視覚要素は canvas + JSON データに集約
-        self.assertContains(resp, 'id="income-ratio-pie"')
-        self.assertContains(resp, '"income-ratio-pie-data"')
+        # 収入比は過不足が直感的に分かる meter で表示する
+        self.assertContains(resp, 'class="expense-income-meter"')
+        self.assertNotContains(resp, 'id="income-ratio-pie"')
+        self.assertNotContains(resp, '"income-ratio-pie-data"')
 
     def test_over_spent_month(self):
         self._make(50000, [(self.cat_food, 60000), (self.cat_transport, 5000)])

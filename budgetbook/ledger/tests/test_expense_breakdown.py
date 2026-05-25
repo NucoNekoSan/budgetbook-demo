@@ -45,6 +45,19 @@ class ExpenseBreakdownViewTest(TestCase):
         resp = self.client.get(reverse('ledger:expense_breakdown'))
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, '支出構成')
+        self.assertContains(resp, '表示基準')
+        self.assertContains(resp, '記録済み収入')
+
+    def test_tables_have_accessible_captions_and_mobile_labels(self):
+        resp = self.client.get(reverse('ledger:expense_breakdown'))
+        self.assertContains(resp, '<caption class="sr-only">', count=4)
+        self.assertContains(resp, 'scope="col"')
+        self.assertContains(resp, 'data-label="金額"')
+
+    def test_month_param_sets_default_year(self):
+        resp = self.client.get(reverse('ledger:expense_breakdown'), {'month': '2020-01'})
+        self.assertEqual(resp.context['target_month'], date(2020, 1, 1))
+        self.assertEqual(resp.context['year'], 2020)
 
     def test_requires_login(self):
         self.client.logout()

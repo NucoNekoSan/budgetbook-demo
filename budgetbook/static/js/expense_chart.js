@@ -1,11 +1,38 @@
 // Expense breakdown doughnut charts (monthly + yearly)
 (function() {
   var COLORS = [
-    '#ef4444','#f97316','#eab308','#22c55e','#14b8a6',
-    '#3b82f6','#8b5cf6','#ec4899','#6366f1','#0ea5e9',
-    '#f43f5e','#a855f7','#84cc16','#06b6d4','#d946ef'
+    '#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6',
+    '#3b82f6', '#8b5cf6', '#ec4899', '#6366f1', '#0ea5e9',
+    '#f43f5e', '#a855f7', '#84cc16', '#06b6d4', '#d946ef'
   ];
+  var CATEGORY_COLORS = {
+    '食費': '#22c55e',
+    '日用品': '#14b8a6',
+    '外食': '#f97316',
+    '水道光熱費': '#eab308',
+    '通信費': '#0ea5e9',
+    '家賃・住宅ローン': '#6366f1',
+    '交通費': '#3b82f6',
+    '教育費': '#8b5cf6',
+    '娯楽': '#ec4899',
+    '衣料・美容': '#d946ef',
+    '医療費': '#ef4444',
+    '交際費': '#a855f7',
+    '保険料': '#84cc16',
+    '税金': '#f43f5e',
+    'サブスク': '#06b6d4'
+  };
   var charts = {};
+
+  function colorForLabel(label) {
+    if (CATEGORY_COLORS[label]) return CATEGORY_COLORS[label];
+    var hash = 0;
+    for (var i = 0; i < label.length; i++) {
+      hash = ((hash << 5) - hash) + label.charCodeAt(i);
+      hash |= 0;
+    }
+    return COLORS[Math.abs(hash) % COLORS.length];
+  }
 
   function renderPie(canvasId, dataId) {
     var el = document.getElementById(canvasId);
@@ -18,15 +45,17 @@
       charts[canvasId].destroy();
       charts[canvasId] = null;
     }
+    var labels = raw.map(function(r) { return r.label || r.category__name; });
+    var panelColor = getComputedStyle(document.documentElement).getPropertyValue('--panel').trim() || '#fff';
     charts[canvasId] = new Chart(el, {
       type: 'doughnut',
       data: {
-        labels: raw.map(function(r) { return r.label || r.category__name; }),
+        labels: labels,
         datasets: [{
           data: raw.map(function(r) { return r.total; }),
-          backgroundColor: raw.map(function(_, i) { return COLORS[i % COLORS.length]; }),
+          backgroundColor: labels.map(colorForLabel),
           borderWidth: 2,
-          borderColor: '#fff'
+          borderColor: panelColor
         }]
       },
       options: {
@@ -56,7 +85,6 @@
     }
     renderPie('monthly-pie', 'monthly-pie-data');
     renderPie('yearly-pie', 'yearly-pie-data');
-    renderPie('income-ratio-pie', 'income-ratio-pie-data');
   }
 
   if (document.readyState === 'loading') {

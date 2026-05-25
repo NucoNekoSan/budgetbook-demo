@@ -90,7 +90,7 @@ class ChartConsistencyTest(TestCase):
     def setUp(self):
         self.client.login(username='chart', password='pass')
 
-    def test_income_ratio_uses_chartjs_canvas(self):
+    def test_income_ratio_uses_meter_not_pie_chart(self):
         Transaction.objects.create(
             date=date.today(), account=self.account, category=self.income,
             amount=10000, description='給与',
@@ -101,8 +101,9 @@ class ChartConsistencyTest(TestCase):
         )
         resp = self.client.get(reverse('ledger:expense_breakdown'))
         body = resp.content.decode('utf-8')
-        # 統一: canvas で描画
-        self.assertIn('id="income-ratio-pie"', body)
+        # 収入比は円グラフではなく、100%超過を読み取りやすい meter で表示
+        self.assertIn('class="expense-income-meter"', body)
+        self.assertNotIn('id="income-ratio-pie"', body)
         # 旧 conic-gradient 由来の inline <style> はもう出ない
         self.assertNotIn('css-pie-chart--current', body)
 
