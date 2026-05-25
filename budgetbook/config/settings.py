@@ -196,27 +196,78 @@ STATIC_URL = '/static/'
 # STATIC_VERSION が変わらず、ユーザー (特に PWA) が古い CSS を見続ける問題があった。
 # 優先順位:
 #   1. 環境変数 STATIC_VERSION (CI/CD で git SHA を渡す等)
-#   2. git rev-parse --short HEAD (Docker image に .git があれば)
-#   3. static/css/style.css の mtime (実際に変更されるファイル)
+#   2. .git/HEAD から読める git SHA (Docker image に .git があれば)
+#   3. static/css/*.css / static/js/*.js の最新 mtime
 #   4. BASE_DIR mtime (最終 fallback)
+def _git_dir(repo_root: Path) -> Path | None:
+    git_path = repo_root / '.git'
+    if git_path.is_dir():
+        return git_path
+    if git_path.is_file():
+        try:
+            for line in git_path.read_text(encoding='utf-8').splitlines():
+                if line.startswith('gitdir:'):
+                    raw = line.partition(':')[2].strip()
+                    candidate = Path(raw)
+                    return candidate if candidate.is_absolute() else (repo_root / candidate).resolve()
+        except (OSError, UnicodeError):
+            return None
+    return None
+
+
+def _git_short_sha(repo_root: Path) -> str:
+    try:
+        git_path = _git_dir(repo_root)
+        if not git_path:
+            return ''
+        head_path = git_path / 'HEAD'
+        if not head_path.is_file():
+            return ''
+        head = head_path.read_text(encoding='utf-8').strip()
+    except (OSError, UnicodeError):
+        return ''
+    sha = ''
+    if head.startswith('ref:'):
+        ref = head.partition(' ')[2].strip()
+        ref_path = git_path / ref
+        try:
+            if ref_path.is_file():
+                sha = ref_path.read_text(encoding='utf-8').strip()
+            else:
+                packed_refs = git_path / 'packed-refs'
+                if packed_refs.is_file():
+                    for line in packed_refs.read_text(encoding='utf-8').splitlines():
+                        if line.startswith('#') or line.startswith('^'):
+                            continue
+                        parts = line.split(' ', 1)
+                        if len(parts) == 2 and parts[1] == ref:
+                            sha = parts[0]
+                            break
+        except (OSError, UnicodeError):
+            return ''
+    else:
+        sha = head
+    if len(sha) >= 7 and all(c in '0123456789abcdefABCDEF' for c in sha):
+        return sha[:7]
+    return ''
+
+
 def _compute_static_version() -> str:
     if env := os.environ.get('STATIC_VERSION'):
         return env
-    try:
-        import subprocess
-        sha = subprocess.check_output(
-            ['git', 'rev-parse', '--short', 'HEAD'],
-            cwd=BASE_DIR.parent if (BASE_DIR.parent / '.git').exists() else BASE_DIR,
-            stderr=subprocess.DEVNULL,
-            timeout=2,
-        ).decode().strip()
+    for repo_root in (BASE_DIR.parent, BASE_DIR):
+        sha = _git_short_sha(repo_root)
         if sha:
             return sha
-    except Exception:
-        pass
-    css = BASE_DIR / 'static' / 'css' / 'style.css'
-    if css.exists():
-        return str(int(css.stat().st_mtime))
+    static_dir = BASE_DIR / 'static'
+    mtimes = [
+        p.stat().st_mtime
+        for pattern in ('css/*.css', 'js/*.js')
+        for p in static_dir.glob(pattern)
+        if p.exists()
+    ]
+    if mtimes:
+        return str(int(max(mtimes)))
     return str(int(BASE_DIR.stat().st_mtime))
 
 STATIC_VERSION = _compute_static_version()

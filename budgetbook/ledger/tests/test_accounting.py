@@ -12,7 +12,7 @@ class MonthlyClosingTest(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.user = User.objects.create_user(username='test', password='pass')
-        cls.account = Account.objects.create(name='普通預金A', opening_balance=10000)
+        cls.account = Account.objects.create(name='メイン口座', opening_balance=10000)
         cls.account_b = Account.objects.create(name='北海道銀行', opening_balance=20000)
         cls.income = Category.objects.create(name='給与', kind=Category.Kind.INCOME)
         cls.expense = Category.objects.create(name='食費', kind=Category.Kind.EXPENSE)
@@ -35,7 +35,7 @@ class MonthlyClosingTest(TestCase):
         resp = self.client.get(reverse('ledger:accounting'))
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, '照合が未登録の口座')
-        self.assertContains(resp, '普通預金A')
+        self.assertContains(resp, 'メイン口座')
         self.assertContains(resp, '北海道銀行')
 
     def test_accounting_preflight_marks_month_end_reconciled_accounts(self):
@@ -80,7 +80,7 @@ class MonthlyClosingTest(TestCase):
 
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, '月末照合に差額があります')
-        self.assertContains(resp, '普通預金A')
+        self.assertContains(resp, 'メイン口座')
 
     def test_create_monthly_closing_snapshot(self):
         Transaction.objects.create(
@@ -385,7 +385,7 @@ class MonthlyClosingTest(TestCase):
         self.assertContains(resp, '現在の帳簿と差異があります。')
         self.assertContains(resp, '収入差')
         self.assertContains(resp, '月末残高差')
-        self.assertContains(resp, '普通預金A')
+        self.assertContains(resp, 'メイン口座')
 
 
 class AccountReconciliationTest(TestCase):

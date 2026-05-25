@@ -9,6 +9,8 @@
     <div class="panel__body">
       <h1 class="page-title">医療費を{% if mode == 'edit' %}編集{% else %}追加{% endif %}</h1>
 
+      {% include 'ledger/partials/tax_calculation_notice.html' %}
+
       <form method="post" action="{{ form_action }}" class="form-grid">
         {% csrf_token %}
 

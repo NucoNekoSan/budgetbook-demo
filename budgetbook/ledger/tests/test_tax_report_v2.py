@@ -19,7 +19,7 @@ from ledger.services.tax_report_v2 import build_tax_report_v2
 
 
 def _make_account():
-    return Account.objects.create(name='普通預金A', opening_balance=500_000)
+    return Account.objects.create(name='メイン口座', opening_balance=500_000)
 
 
 def _make_donation_category():

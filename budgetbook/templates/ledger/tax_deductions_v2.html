@@ -12,7 +12,7 @@
           <h1 class="page-title">{{ year }}年 確定申告レポート</h1>
           <div class="meta">
             医療費控除 + 生命保険料控除 + 地震保険料控除 + 寄附金（参考）の統合ビューです。
-            各セクションの金額をそのまま確定申告書 第二表に転記できます。
+            各セクションの金額を確定申告書 第二表への転記候補として確認できます。
           </div>
         </div>
         <div class="button-row">
@@ -24,7 +24,9 @@
         </div>
       </div>
 
-      <form method="get" action="{% url 'ledger:tax_deductions_v2' %}" class="form-grid" style="margin-top: 12px;">
+      {% include 'ledger/partials/tax_calculation_notice.html' %}
+
+      <form method="get" action="{% url 'ledger:tax_deductions_v2' %}" class="form-grid u-mt-12">
         <div class="field">
           <label for="year-input">年</label>
           <input id="year-input" type="number" name="year" value="{{ year }}" class="form-input" min="2000" max="2099">
@@ -41,7 +43,7 @@
       </form>
 
       {# 総括 #}
-      <h2 class="section-title" style="margin-top: 24px;">📊 総括</h2>
+      <h2 class="section-title u-mt-24">📊 総括</h2>
       <div class="cards">
         <div class="card">
           <div class="card__label">医療費控除</div>
@@ -66,9 +68,9 @@
       </div>
 
       {# 医療費控除 #}
-      <h2 class="section-title" style="margin-top: 32px;">💊 医療費控除</h2>
+      <h2 class="section-title u-mt-32">💊 医療費控除</h2>
       {% if not summary.medical.gross_income_known %}
-        <div class="helper" style="background: #fff7e6; padding: 12px; border-radius: 8px; margin-bottom: 12px;">
+        <div class="helper helper--compact u-mb-12">
           ⚠ {{ year }} 年の総所得が未登録のため、控除基準額は 10 万円ラインで暫定計算しています。
           <a href="{% url 'ledger:income_snapshot_list' %}">年次所得を登録</a>
         </div>
@@ -98,14 +100,14 @@
           </div>
         </div>
       </div>
-      <div class="helper" style="margin-top: 12px;">
+      <div class="helper u-mt-12">
         <strong>申告書 第二表 ⑩医療費控除 = {{ summary.medical.deduction|yen }}</strong>
         ・ <a href="{% url 'ledger:medical_expense_list' %}?year={{ year }}">→ 詳細管理</a>
       </div>
 
       {# 生命保険料控除 #}
-      <h2 class="section-title" style="margin-top: 32px;">🛡️ 生命保険料控除</h2>
-      <div class="meta" style="margin-bottom: 8px;">列「新契約」「旧契約」は支払額。</div>
+      <h2 class="section-title u-mt-32">🛡️ 生命保険料控除</h2>
+      <div class="meta u-mb-8">列「新契約」「旧契約」は支払額。</div>
       <table class="table table--compact">
         <thead>
           <tr>
@@ -140,14 +142,14 @@
           </tr>
         </tfoot>
       </table>
-      <div class="helper" style="margin-top: 12px;">
+      <div class="helper u-mt-12">
         <strong>申告書 第二表 ⑮生命保険料控除 = {{ summary.insurance.life.total|yen }}</strong>
         {% if exclude_year_end %}（年末調整提出済を除外した額）{% else %}（年末調整提出済も含む額）{% endif %}
         ・ <a href="{% url 'ledger:insurance_premium_list' %}?year={{ year }}">→ 詳細管理</a>
       </div>
 
       {# 地震保険料控除 #}
-      <h2 class="section-title" style="margin-top: 32px;">🏠 地震保険料控除</h2>
+      <h2 class="section-title u-mt-32">🏠 地震保険料控除</h2>
       <div class="cards">
         <div class="card">
           <div class="card__label">支払合計</div>
@@ -158,13 +160,13 @@
           <div class="card__value">{{ summary.insurance.earthquake.deduction|yen }}</div>
         </div>
       </div>
-      <div class="helper" style="margin-top: 12px;">
+      <div class="helper u-mt-12">
         <strong>申告書 第二表 ⑯地震保険料控除 = {{ summary.insurance.earthquake.deduction|yen }}</strong>
         ・ <a href="{% url 'ledger:insurance_premium_list' %}?year={{ year }}">→ 詳細管理</a>
       </div>
 
       {# 寄附金 #}
-      <h2 class="section-title" style="margin-top: 32px;">🎁 寄附金（参考）</h2>
+      <h2 class="section-title u-mt-32">🎁 寄附金（参考）</h2>
       {% if summary.donation.transactions %}
         <table class="table">
           <thead>
@@ -198,21 +200,21 @@
           カテゴリの税控除タグを「寄附金（ふるさと納税等）」に設定すると、ここに集計されます。
         </div>
       {% endif %}
-      <div class="helper" style="margin-top: 12px;">
+      <div class="helper u-mt-12">
         <strong>申告書 第二表 ⑲寄附金控除 = 別途計算が必要</strong>
         （ふるさと納税ワンストップ特例利用時は申告不要。所得税控除/住民税控除の計算は申告書 B 様式の計算欄を参照）
         ・ <a href="{% url 'ledger:tax_deductions' %}?year={{ year }}&tax_tag=donation">→ 詳細管理</a>
       </div>
 
-      <div class="helper" style="margin-top: 32px; padding: 16px; background: #f6f8fb; border-radius: 8px;">
+      <div class="helper helper--soft u-mt-32">
         <strong>申告書転記の手引き</strong>
-        <ul style="margin-top: 8px;">
+        <ul class="u-mt-8">
           <li>第二表 ⑩医療費控除欄 ← {{ summary.medical.deduction|yen }}</li>
           <li>第二表 ⑮生命保険料控除欄 ← {{ summary.insurance.life.total|yen }}</li>
           <li>第二表 ⑯地震保険料控除欄 ← {{ summary.insurance.earthquake.deduction|yen }}</li>
           <li>第二表 ⑲寄附金控除欄 ← 別途計算（このページの寄附金参考値: {{ summary.donation.total|yen }}）</li>
         </ul>
-        <div class="meta" style="margin-top: 8px;">
+        <div class="meta u-mt-8">
           ※ 欄番号は 2026 年現在の申告書様式に基づきます。様式改訂時は申告書原本で欄番号を確認してください。
         </div>
       </div>

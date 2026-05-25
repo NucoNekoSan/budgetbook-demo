@@ -32,6 +32,7 @@ from ..services.dates import (
     month_param,
     parse_month,
 )
+from ..services.medical import medical_fields_context
 
 
 def _client_ip(request: HttpRequest) -> str:
@@ -90,6 +91,7 @@ def build_transaction_form_context(
     target_month: date,
     form: TransactionForm | None = None,
     transaction: Transaction | None = None,
+    field_data=None,
 ) -> dict:
     mp = month_param(target_month)
     monthly_closing = MonthlyClosing.objects.filter(month=target_month).first()
@@ -107,6 +109,11 @@ def build_transaction_form_context(
             'transaction': transaction,
             'form_month_closed': monthly_closing is not None,
             'form_monthly_closing': monthly_closing,
+            'medical_fields': medical_fields_context(
+                category_id=form['category'].value(),
+                transaction=transaction,
+                field_data=field_data,
+            ),
         }
     if form is None:
         form = TransactionForm(initial={'date': default_transaction_date(target_month)})
@@ -120,6 +127,10 @@ def build_transaction_form_context(
         'cancel_url': f"{reverse('ledger:transaction_create')}?month={mp}",
         'form_month_closed': monthly_closing is not None,
         'form_monthly_closing': monthly_closing,
+        'medical_fields': medical_fields_context(
+            category_id=form['category'].value(),
+            field_data=field_data,
+        ),
     }
 
 
@@ -237,7 +248,7 @@ def inline_form_context(*, mode: str, instance, form, target_month: date, filter
         action = reverse('ledger:transaction_inline_update', args=[instance.pk])
         cancel = reverse('ledger:transaction_inline_cancel', args=[instance.pk])
         row_id = f'inline-edit-tx-{instance.pk}'
-    return {
+    context = {
         'form': form,
         'form_mode': mode,
         'month_param': mp,
@@ -250,3 +261,11 @@ def inline_form_context(*, mode: str, instance, form, target_month: date, filter
         'filter_category': filters.get('category', ''),
         'page': page,
     }
+    if mode == 'transaction':
+        context['medical_fields'] = medical_fields_context(
+            category_id=form['category'].value(),
+            transaction=instance,
+            field_data=form.data if form.is_bound else None,
+            medical_fields_id=f'medical-fields-{row_id}',
+        )
+    return context

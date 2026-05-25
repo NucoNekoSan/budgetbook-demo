@@ -28,6 +28,10 @@
           </div>
         {% endfor %}
 
+        {% if form_mode == 'transaction' %}
+          {% include 'ledger/partials/medical_fields.html' with show=medical_fields.show medical_fields_id=medical_fields.medical_fields_id category_choices=medical_fields.category_choices medical_patient=medical_fields.medical_patient medical_provider=medical_fields.medical_provider medical_category=medical_fields.medical_category medical_reimbursement=medical_fields.medical_reimbursement %}
+        {% endif %}
+
         {% if form.non_field_errors %}
           <ul class="errors">
             {% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}

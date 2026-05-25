@@ -24,22 +24,22 @@ class AccrueLoanInterestTest(TestCase):
             name='金利・手数料',
             kind=Category.Kind.EXPENSE,
         )
-        # 利息計上の対象になる負債口座 (16.80% 残債 ¥500,000、demo 用ラウンド値)
+        # 利息計上の対象になる負債口座 (16.80% 残債 ¥XXX,XXX)
         cls.acct_revolving = Account.objects.create(
-            name='クレジットカードA',
+            name='カードローンA',
             kind=Account.Kind.LIABILITY,
-            opening_balance=-500000,
+            opening_balance=-100000,
         )
         cls.profile_revolving = LoanProfile.objects.create(
             account=cls.acct_revolving,
             annual_rate_bp=1680,  # 16.80%
             method=LoanProfile.Method.REVOLVING,
         )
-        # 利率 0% (対象外、demo 用ラウンド値)
+        # 利率 0% (対象外)
         cls.acct_zero = Account.objects.create(
-            name='分割返済B',
+            name='教育ローン',
             kind=Account.Kind.LIABILITY,
-            opening_balance=-200000,
+            opening_balance=-50000,
         )
         cls.profile_zero = LoanProfile.objects.create(
             account=cls.acct_zero,
@@ -55,17 +55,17 @@ class AccrueLoanInterestTest(TestCase):
     def test_dry_run_default_lists_eligible(self):
         output = self._call(month='2026-05')
         self.assertIn('[DRY-RUN]', output)
-        self.assertIn('クレジットカードA', output)
-        # 元本 ¥500,000 × 16.80%/12 = ¥7,000 (ちょうど)
-        self.assertIn('¥7,000', output)
-        self.assertNotIn('分割返済B', output)  # 0% はスキップ
+        self.assertIn('カードローンA', output)
+        # 元本 ¥XXX,XXX × 16.80%/12 = ¥1,400 → round = ¥1,400
+        self.assertIn('¥1,400', output)
+        self.assertNotIn('教育ローン', output)  # 0% はスキップ
         # DB は変更されていない
         self.assertEqual(Transaction.objects.count(), 0)
         self.assertEqual(AuditLog.objects.count(), 0)
 
     def test_zero_rate_profile_skipped(self):
         output = self._call(month='2026-05')
-        self.assertNotIn('分割返済B', output)
+        self.assertNotIn('教育ローン', output)
 
     def test_inactive_account_skipped(self):
         self.acct_revolving.is_active = False
@@ -81,7 +81,7 @@ class AccrueLoanInterestTest(TestCase):
         self.assertEqual(tx.date, date(2026, 5, 31))
         self.assertEqual(tx.account, self.acct_revolving)
         self.assertEqual(tx.category, self.interest_cat)
-        self.assertEqual(tx.amount, 7000)
+        self.assertEqual(tx.amount, 1400)
 
     def test_apply_records_audit_log(self):
         self._call(month='2026-05', apply=True)
@@ -90,8 +90,8 @@ class AccrueLoanInterestTest(TestCase):
         self.assertEqual(log.target_model, 'Transaction')
         self.assertEqual(log.metadata['source'], 'accrue_loan_interest')
         self.assertEqual(log.metadata['month'], '2026-05')
-        self.assertEqual(log.metadata['account'], 'クレジットカードA')
-        self.assertEqual(log.metadata['interest'], 7000)
+        self.assertEqual(log.metadata['account'], 'カードローンA')
+        self.assertEqual(log.metadata['interest'], 1400)
 
     def test_duplicate_month_rejected(self):
         self._call(month='2026-05', apply=True)
@@ -125,16 +125,16 @@ class AccrueLoanInterestTest(TestCase):
     def test_account_filter(self):
         # 別のリボ口座を追加
         acct_b = Account.objects.create(
-            name='クレジットカードB',
+            name='カードローンB',
             kind=Account.Kind.LIABILITY,
-            opening_balance=-100000,
+            opening_balance=-80000,
         )
         LoanProfile.objects.create(
             account=acct_b, annual_rate_bp=1500,
         )
-        output = self._call(month='2026-05', account='クレジットカードA')
-        self.assertIn('クレジットカードA', output)
-        self.assertNotIn('クレジットカードB', output)
+        output = self._call(month='2026-05', account='カードローンA')
+        self.assertIn('カードローンA', output)
+        self.assertNotIn('カードローンB', output)
 
     def test_invalid_month_format(self):
         with self.assertRaises(CommandError):
@@ -142,7 +142,7 @@ class AccrueLoanInterestTest(TestCase):
 
     def test_apply_balance_includes_prior_transactions(self):
         """月初時点の残高に過去 Transaction が反映されること。"""
-        # 4 月末に追加支出 ¥10,000 (リボ残高が -510,000 になる)
+        # 4 月末に追加支出 ¥10,000 (リボ残高が -398,897 になる)
         expense_cat = Category.objects.create(name='テスト支出', kind=Category.Kind.EXPENSE)
         Transaction.objects.create(
             date=date(2026, 4, 30),
@@ -153,5 +153,5 @@ class AccrueLoanInterestTest(TestCase):
         )
         self._call(month='2026-05', apply=True)
         tx = Transaction.objects.filter(category=self.interest_cat).get()
-        # 元本 510,000 × 16.80%/12 = 7,140 (ちょうど)
-        self.assertEqual(tx.amount, 7140)
+        # 元本 110,000 × 16.80%/12 = 1,540
+        self.assertEqual(tx.amount, 1540)

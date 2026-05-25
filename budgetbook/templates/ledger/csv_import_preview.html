@@ -29,7 +29,7 @@
     <input type="hidden" name="filename" value="{{ filename }}">
     <textarea name="csv_text" hidden>{{ csv_text }}</textarea>
 
-    <div class="panel__body" style="overflow-x:auto;">
+    <div class="panel__body u-overflow-x-auto">
       <table class="data-table">
         <thead>
           <tr>
@@ -40,6 +40,8 @@
             <th>種別</th>
             <th>口座</th>
             <th>カテゴリ</th>
+            <th>支払先候補</th>
+            <th>支払手段</th>
             <th>金額</th>
             <th>摘要</th>
             <th>メモ</th>
@@ -63,11 +65,30 @@
                 {% else %}<span class="badge badge--error">{{ pr.status }}</span>
                 {% endif %}
                 {% if pr.csv_unsafe %}<span class="badge badge--warn" title="先頭文字が =+-@ などの危険な値です">CSV注意</span>{% endif %}
+                {% if pr.payment_method_warning %}<span class="badge badge--warn">{{ pr.payment_method_warning }}</span>{% endif %}
                 {% for e in pr.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
               </td>
-              {% for cell in pr.raw %}
-                <td>{{ cell }}</td>
-              {% endfor %}
+              <td>{{ pr.raw.0 }}</td>
+              <td>{{ pr.raw.1 }}</td>
+              <td>{{ pr.raw.2 }}</td>
+              <td>{{ pr.raw.3 }}</td>
+              <td>
+                {% if pr.payee_name %}
+                  <span class="chip chip--neutral">{{ pr.payee_name }}</span>
+                {% else %}
+                  <span class="meta">未指定</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if pr.payment_method_name %}
+                  <span class="chip chip--neutral">{{ pr.payment_method_name }}</span>
+                {% else %}
+                  <span class="meta">未指定</span>
+                {% endif %}
+              </td>
+              <td>{{ pr.raw.4 }}</td>
+              <td>{{ pr.raw.5 }}</td>
+              <td>{{ pr.raw.6 }}</td>
             </tr>
           {% endfor %}
         </tbody>

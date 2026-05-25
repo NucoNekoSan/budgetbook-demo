@@ -57,7 +57,7 @@ def transaction_create(request: HttpRequest) -> HttpResponse:
                 return render_dashboard_bundle(request, target_month, '取引を保存しました。')
             return redirect(f"{reverse('ledger:dashboard')}?month={month_param(target_month)}")
         status = 422 if request.htmx else 200
-        context = build_form_context(target_month, form=form)
+        context = build_form_context(target_month, form=form, field_data=request.POST)
         return render(request, 'ledger/partials/transaction_form_panel.html', context, status=status)
 
     context = build_form_context(target_month)
@@ -94,7 +94,7 @@ def transaction_update(request: HttpRequest, pk: int) -> HttpResponse:
                 return render_dashboard_bundle(request, target_month, '取引を更新しました。')
             return redirect(f"{reverse('ledger:dashboard')}?month={month_param(target_month)}")
         status = 422 if request.htmx else 200
-        context = build_form_context(target_month, form=form, transaction=transaction)
+        context = build_form_context(target_month, form=form, transaction=transaction, field_data=request.POST)
         return render(request, 'ledger/partials/transaction_form_panel.html', context, status=status)
 
     context = build_form_context(target_month, transaction=transaction)
@@ -159,6 +159,7 @@ def transaction_inline_update(request: HttpRequest, pk: int) -> HttpResponse:
                     '締め済み月のため、取引を更新できません。',
                 )
             updated = form.save()
+            sync_medical_expense_from_post(updated, request.POST)
             record_audit(
                 request,
                 AuditLog.Action.UPDATE,

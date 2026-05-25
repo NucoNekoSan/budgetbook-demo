@@ -70,4 +70,12 @@ urlpatterns = [
     path('settings/categories/<int:pk>/edit/', views.category_update, name='category_update'),
     path('settings/categories/<int:pk>/toggle/', views.category_toggle, name='category_toggle'),
     path('settings/categories/<int:pk>/delete/', views.category_delete, name='category_delete'),
+    path('settings/payees/new/', views.payee_create, name='payee_create'),
+    path('settings/payees/<int:pk>/edit/', views.payee_update, name='payee_update'),
+    path('settings/payees/<int:pk>/toggle/', views.payee_toggle, name='payee_toggle'),
+    path('settings/payees/<int:pk>/delete/', views.payee_delete, name='payee_delete'),
+    path('settings/payment-methods/new/', views.payment_method_create, name='payment_method_create'),
+    path('settings/payment-methods/<int:pk>/edit/', views.payment_method_update, name='payment_method_update'),
+    path('settings/payment-methods/<int:pk>/toggle/', views.payment_method_toggle, name='payment_method_toggle'),
+    path('settings/payment-methods/<int:pk>/delete/', views.payment_method_delete, name='payment_method_delete'),
 ]

@@ -58,14 +58,7 @@
 
       {# v1.16.0: tax_tag=MEDICAL カテゴリ選択時に医療費詳細を HTMX 展開 #}
       {% if form_mode == 'transaction' %}
-        <div
-          id="medical-fields"
-          hx-get="{% url 'ledger:transaction_medical_fields' %}"
-          hx-trigger="change from:#id_category"
-          hx-include="#id_category"
-          hx-target="#medical-fields"
-          hx-swap="outerHTML"
-        ></div>
+        {% include 'ledger/partials/medical_fields.html' with show=medical_fields.show medical_fields_id=medical_fields.medical_fields_id category_choices=medical_fields.category_choices medical_patient=medical_fields.medical_patient medical_provider=medical_fields.medical_provider medical_category=medical_fields.medical_category medical_reimbursement=medical_fields.medical_reimbursement %}
       {% endif %}
 
       {# リアルタイムプレビュー: 通常取引時のみ #}

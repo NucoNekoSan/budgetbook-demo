@@ -9,10 +9,12 @@
     <div class="panel__body">
       <h1 class="page-title">保険料控除を{% if mode == 'edit' %}編集{% else %}追加{% endif %}</h1>
 
-      <div class="meta" style="margin-bottom: 12px;">
+      <div class="meta u-mb-12">
         控除証明書（10〜11 月頃に保険会社から到着）を見ながら入力してください。
         共済（県民共済 / 全労済 / JA 共済等）も区分は控除証明書の記載通りに選択します。
       </div>
+
+      {% include 'ledger/partials/tax_calculation_notice.html' %}
 
       <form method="post" action="{{ form_action }}" class="form-grid">
         {% csrf_token %}

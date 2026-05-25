@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 ![Python 3.13+](https://img.shields.io/badge/Python-3.13%2B-blue)
 ![Django 5.2](https://img.shields.io/badge/Django-5.2-green)
-![Tests 500 passing](https://img.shields.io/badge/Tests-500%20passing-brightgreen)
+![Tests 545+ passing](https://img.shields.io/badge/Tests-545%2B%20passing-brightgreen)
 
 このリポジトリは **公開デモ / セルフホスト配布** 用です。実際のデータは含まれず、`seed_demo_data` コマンドで生成される **架空の 4 人家族家計** のみが入っています。
 
@@ -16,6 +16,8 @@
 - **日々の家計簿**: 収入・支出・振替を口座別 / カテゴリ別に管理。HTMX によるリアルタイム入力 UX
 - **個人バランスシート**: 資産口座（現金・預金・証券）と負債口座（住宅ローン・自動車ローン等）の「正味財産」可視化
 - **月次予算と進捗バー**: section 単位の予算設定、超過警告
+- **支払先・支払手段マスタ**: 店舗/医療機関/勤務先の表記揺れ、現金/カード/電子マネー等の支払手段を管理
+- **カテゴリ変更履歴**: カテゴリ名・大分類・税控除タグの変更履歴を記録し、使用済みカテゴリの危険な区分変更を防止
 - **月次締めと残高照合**: 確定済み月の保護、口座残高との突合
 - **CSV 入出力**: UTF-8 BOM 付き、CSV injection 対策済み
 - **PWA 化**: スマホのホーム画面に追加で「アプリ風」起動

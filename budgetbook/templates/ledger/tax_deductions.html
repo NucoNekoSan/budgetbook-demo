@@ -23,6 +23,8 @@
         </div>
       </div>
 
+      {% include 'ledger/partials/tax_calculation_notice.html' %}
+
       <form method="get" action="{% url 'ledger:tax_deductions' %}" class="form-grid">
         <div class="field">
           <label for="year-input">年</label>
@@ -42,7 +44,7 @@
         </div>
       </form>
 
-      <div class="cards" style="margin-top: 16px;">
+      <div class="cards u-mt-16">
         <div class="card">
           <div class="card__label">該当件数</div>
           <div class="card__value">{{ count }} 件</div>
@@ -58,7 +60,7 @@
               <div class="card__value">あと {{ medical_remaining|yen }}</div>
               <div class="meta">控除ラインに到達していません</div>
             {% else %}
-              <div class="card__value" style="color: var(--c-income);">✓ 突破</div>
+              <div class="card__value u-text-income">✓ 突破</div>
               <div class="meta">控除申告のメリットがあります</div>
             {% endif %}
           </div>
@@ -66,7 +68,7 @@
       </div>
 
       {% if transactions %}
-        <table class="table" style="margin-top: 16px;">
+        <table class="table u-mt-16">
           <thead>
             <tr>
               <th>日付</th>
@@ -96,7 +98,7 @@
           </tfoot>
         </table>
       {% else %}
-        <div class="helper" style="margin-top: 16px;">
+        <div class="helper u-mt-16">
           {{ year }} 年に「{{ tax_tag_label }}」タグの取引はありません。
           <br>
           カテゴリ編集画面で「税控除タグ」を設定すると、ここに集計されます。

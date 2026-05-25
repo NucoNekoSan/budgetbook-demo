@@ -15,6 +15,8 @@
     <nav class="settings-sublinks" aria-label="設定セクション">
       <a href="#account-list" class="settings-sublinks__link">🏦 口座管理</a>
       <a href="#category-list" class="settings-sublinks__link">🏷️ カテゴリ管理</a>
+      <a href="#payee-list" class="settings-sublinks__link">🏪 支払先管理</a>
+      <a href="#payment-method-list" class="settings-sublinks__link">💳 支払手段管理</a>
       <a href="{% url 'ledger:sections_bulk_edit' %}" class="settings-sublinks__link">📋 大分類の一括編集</a>
       <a href="{% url 'ledger:budget_edit' %}" class="settings-sublinks__link">💰 月次予算</a>
       <a href="{% url 'ledger:login_history' %}" class="settings-sublinks__link">🔐 セキュリティ (ログイン履歴)</a>
@@ -27,6 +29,14 @@
 
       <section id="category-list" class="settings-section">
         {% include 'ledger/partials/category_list.html' %}
+      </section>
+
+      <section id="payee-list" class="settings-section">
+        {% include 'ledger/partials/payee_list.html' %}
+      </section>
+
+      <section id="payment-method-list" class="settings-section">
+        {% include 'ledger/partials/payment_method_list.html' %}
       </section>
     </div>
   </div>

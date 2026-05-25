@@ -20,15 +20,15 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="BudgetBook">
-    <script nonce="{{ csp_nonce }}" src="{% static 'js/theme_toggle.js' %}" defer></script>
+    <script nonce="{{ csp_nonce }}" src="{% static 'js/theme_toggle.js' %}?v={{ STATIC_VERSION }}" defer></script>
     {% htmx_script %}
-    <script nonce="{{ csp_nonce }}" src="{% static 'js/htmx_config.js' %}" defer></script>
-    <script nonce="{{ csp_nonce }}" src="{% static 'vendor/chart.umd.min.js' %}" defer></script>
-    <script nonce="{{ csp_nonce }}" src="{% static 'js/budget_chart.js' %}" defer></script>
-    <script nonce="{{ csp_nonce }}" src="{% static 'js/progress_bars.js' %}" defer></script>
-    <script nonce="{{ csp_nonce }}" src="{% static 'js/keyboard_shortcuts.js' %}" defer></script>
-    <script nonce="{{ csp_nonce }}" src="{% static 'js/pwa_register.js' %}" defer></script>
-    <script nonce="{{ csp_nonce }}" src="{% static 'js/mobile_nav.js' %}" defer></script>
+    <script nonce="{{ csp_nonce }}" src="{% static 'js/htmx_config.js' %}?v={{ STATIC_VERSION }}" defer></script>
+    <script nonce="{{ csp_nonce }}" src="{% static 'vendor/chart.umd.min.js' %}?v={{ STATIC_VERSION }}" defer></script>
+    <script nonce="{{ csp_nonce }}" src="{% static 'js/budget_chart.js' %}?v={{ STATIC_VERSION }}" defer></script>
+    <script nonce="{{ csp_nonce }}" src="{% static 'js/progress_bars.js' %}?v={{ STATIC_VERSION }}" defer></script>
+    <script nonce="{{ csp_nonce }}" src="{% static 'js/keyboard_shortcuts.js' %}?v={{ STATIC_VERSION }}" defer></script>
+    <script nonce="{{ csp_nonce }}" src="{% static 'js/pwa_register.js' %}?v={{ STATIC_VERSION }}" defer></script>
+    <script nonce="{{ csp_nonce }}" src="{% static 'js/mobile_nav.js' %}?v={{ STATIC_VERSION }}" defer></script>
     {% block extra_js %}{% endblock %}
   </head>
   <body hx-headers='{"x-csrftoken": "{{ csrf_token }}"}' data-route="{% block route %}{% endblock %}">

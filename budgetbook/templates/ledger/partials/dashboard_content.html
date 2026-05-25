@@ -240,13 +240,13 @@
 
       <div class="filter-bar">
         <div class="filter-bar__field--grow">
-          <label class="meta" for="filter-q">摘要</label>
+          <label class="meta" for="filter-q">摘要/支払先/支払手段</label>
           <input
             id="filter-q"
             name="q"
             type="text"
             class="form-input"
-            placeholder="キーワード"
+            placeholder="摘要・支払先・支払手段"
             value="{{ filter_q }}"
             form="filter-form"
           >
@@ -296,7 +296,7 @@
       {% if is_filtered %}
         <div class="meta filter-status">
           絞り込み中:
-          {% if filter_q %}摘要「{{ filter_q }}」{% endif %}
+          {% if filter_q %}摘要/支払先/支払手段「{{ filter_q }}」{% endif %}
           {% if filter_account %}{% for acct in all_accounts %}{% if acct.pk == filter_account %}口座「{{ acct.name }}」{% endif %}{% endfor %}{% endif %}
           {% if filter_category %}{% for cat in all_categories %}{% if cat.pk == filter_category %}カテゴリ「{{ cat.name }}」{% endif %}{% endfor %}{% endif %}
         </div>
@@ -322,6 +322,8 @@
                     <td data-label="日付">{{ row.date|date:'Y-m-d' }}</td>
                     <td data-label="摘要">
                       <div><strong>{{ row.description }}</strong></div>
+                      {% if row.payee %}<div class="meta">支払先: {{ row.payee.name }}</div>{% endif %}
+                      {% if row.payment_method %}<div class="meta">支払手段: {{ row.payment_method.name }}</div>{% endif %}
                       {% if row.memo %}<div class="meta">{{ row.memo|truncatechars:40 }}</div>{% endif %}
                     </td>
                     <td data-label="口座">{{ row.from_account.name }} → {{ row.to_account.name }}</td>

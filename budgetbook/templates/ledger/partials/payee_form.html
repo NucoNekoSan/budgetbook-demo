@@ -1,19 +1,13 @@
 <div class="settings-form-card">
   <h3 class="section-title section-title--tight">{{ form_title }}</h3>
-  {% if not is_new %}
-    <div class="helper">
-      カテゴリ名・大分類・税控除タグの変更は過去取引の表示やレポートにも反映され、変更履歴に記録されます。
-      使用済みカテゴリの区分変更はできません。
-    </div>
-  {% endif %}
   <form
     {% if is_new %}
-      hx-post="{% url 'ledger:category_create' %}"
+      hx-post="{% url 'ledger:payee_create' %}"
     {% else %}
-      hx-post="{% url 'ledger:category_update' edit_pk %}"
-      hx-confirm="このカテゴリの内容を更新します。よろしいですか？"
+      hx-post="{% url 'ledger:payee_update' edit_pk %}"
+      hx-confirm="この支払先の内容を更新します。よろしいですか？"
     {% endif %}
-    hx-target="#category-list"
+    hx-target="#payee-list"
     hx-swap="innerHTML"
     class="form-grid"
   >
@@ -48,18 +42,18 @@
       <button
         class="btn btn--ghost"
         type="button"
-        hx-get="{% url 'ledger:category_create' %}?close=1"
-        hx-target="#category-list"
+        hx-get="{% url 'ledger:payee_create' %}?close=1"
+        hx-target="#payee-list"
         hx-swap="innerHTML"
       >キャンセル</button>
       {% if not is_new %}
         <button
           class="btn btn--danger"
           type="button"
-          hx-post="{% url 'ledger:category_delete' edit_pk %}"
-          hx-target="#category-list"
+          hx-post="{% url 'ledger:payee_delete' edit_pk %}"
+          hx-target="#payee-list"
           hx-swap="innerHTML"
-          hx-confirm="このカテゴリを削除します。この操作は取り消せません。よろしいですか？"
+          hx-confirm="この支払先を削除します。この操作は取り消せません。よろしいですか？"
         >削除</button>
       {% endif %}
     </div>

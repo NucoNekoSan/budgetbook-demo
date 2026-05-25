@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
+from decimal import Decimal
 
 from django import forms
 from django.urls import reverse_lazy
@@ -13,8 +14,12 @@ from .models import (
     LoanProfile,
     MedicalExpense,
     MonthlyClosing,
+    Payee,
+    PayeeAlias,
+    PaymentMethod,
     Transaction,
     Transfer,
+    normalize_master_name,
 )
 
 
@@ -35,15 +40,20 @@ class TransactionForm(forms.ModelForm):
         }),
     )
 
-    field_order = ['date', 'account', 'kind', 'category', 'amount', 'description', 'memo']
+    field_order = [
+        'date', 'account', 'kind', 'category', 'amount',
+        'description', 'payee', 'payment_method', 'memo',
+    ]
 
     class Meta:
         model = Transaction
-        fields = ['date', 'account', 'category', 'amount', 'description', 'memo']
+        fields = ['date', 'account', 'category', 'amount', 'description', 'payee', 'payment_method', 'memo']
         widgets = {
             'date': DateInput(attrs={'class': 'form-input', 'enterkeyhint': 'next', 'autocomplete': 'off'}),
             'account': forms.Select(attrs={'class': 'form-input'}),
             'category': forms.Select(attrs={'class': 'form-input'}),
+            'payee': forms.Select(attrs={'class': 'form-input'}),
+            'payment_method': forms.Select(attrs={'class': 'form-input'}),
             'amount': forms.NumberInput(attrs={
                 'class': 'form-input', 'step': '1', 'min': '1',
                 'inputmode': 'numeric', 'enterkeyhint': 'next', 'autocomplete': 'off',
@@ -63,6 +73,8 @@ class TransactionForm(forms.ModelForm):
             'category': 'カテゴリ',
             'amount': '金額',
             'description': '摘要',
+            'payee': '支払先',
+            'payment_method': '支払手段',
             'memo': 'メモ',
         }
 
@@ -72,6 +84,16 @@ class TransactionForm(forms.ModelForm):
         if self.instance and self.instance.pk:
             account_qs = account_qs | Account.objects.filter(pk=self.instance.account_id)
         self.fields['account'].queryset = account_qs.distinct().order_by('name')
+        payee_qs = Payee.objects.filter(is_active=True)
+        if self.instance and self.instance.pk and self.instance.payee_id:
+            payee_qs = payee_qs | Payee.objects.filter(pk=self.instance.payee_id)
+        self.fields['payee'].queryset = payee_qs.distinct().order_by('name')
+        self.fields['payee'].empty_label = '未指定'
+        payment_method_qs = PaymentMethod.objects.filter(is_active=True)
+        if self.instance and self.instance.pk and self.instance.payment_method_id:
+            payment_method_qs = payment_method_qs | PaymentMethod.objects.filter(pk=self.instance.payment_method_id)
+        self.fields['payment_method'].queryset = payment_method_qs.distinct().order_by('name')
+        self.fields['payment_method'].empty_label = '未指定'
         for field in self.fields.values():
             field.help_text = ''
 
@@ -209,7 +231,7 @@ class AccountForm(forms.ModelForm):
         model = Account
         fields = ['name', 'kind', 'opening_balance', 'notes']
         widgets = {
-            'name': forms.TextInput(attrs={'class': 'form-input', 'placeholder': '例: 普通預金A、現金、クレジットカードA'}),
+            'name': forms.TextInput(attrs={'class': 'form-input', 'placeholder': '例: 三菱UFJ、現金、楽天カード'}),
             'kind': forms.Select(attrs={'class': 'form-input'}),
             'opening_balance': forms.NumberInput(attrs={'class': 'form-input', 'step': '1'}),
             'notes': forms.Textarea(attrs={'class': 'form-input', 'rows': 2, 'placeholder': '任意メモ'}),
@@ -330,13 +352,23 @@ class LoanProfileForm(forms.ModelForm):
                            'payment_day', 'payoff_date', 'source_account', 'notes'])
 
     def save(self, *args, **kwargs):
-        # %入力を bp に変換
-        pct = self.cleaned_data.get('annual_rate_pct_input') or 0
-        self.instance.annual_rate_bp = int(round(float(pct) * 100))
+        # %入力を bp に変換 (Decimal で計算し float 誤差を回避)
+        pct = self.cleaned_data.get('annual_rate_pct_input') or Decimal('0')
+        self.instance.annual_rate_bp = int((Decimal(pct) * Decimal('100')).to_integral_value())
         return super().save(*args, **kwargs)
 
 
 class CategoryForm(forms.ModelForm):
+    change_reason = forms.CharField(
+        label='変更理由',
+        required=False,
+        widget=forms.Textarea(attrs={
+            'class': 'form-input',
+            'rows': 2,
+            'placeholder': '例: 分類方針の見直し、名称整理',
+        }),
+    )
+
     class Meta:
         model = Category
         fields = ['name', 'kind', 'section', 'tax_tag', 'notes']
@@ -355,12 +387,12 @@ class CategoryForm(forms.ModelForm):
             'notes': 'メモ',
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, include_change_reason: bool = False, **kwargs):
         super().__init__(*args, **kwargs)
+        if not include_change_reason:
+            self.fields.pop('change_reason', None)
         for field in self.fields.values():
             field.help_text = ''
-        if self.instance and self.instance.pk:
-            self.fields['kind'].disabled = True
 
     def clean_name(self):
         name = self.cleaned_data['name']
@@ -371,10 +403,160 @@ class CategoryForm(forms.ModelForm):
             raise forms.ValidationError(f'「{name}」は既に使われています。別の名前を入力してください。')
         return name
 
-    def clean_kind(self):
+
+class PayeeForm(forms.ModelForm):
+    aliases_text = forms.CharField(
+        label='別名',
+        required=False,
+        widget=forms.Textarea(attrs={
+            'class': 'form-input',
+            'rows': 3,
+            'placeholder': 'CSVや明細の表記揺れを1行に1つずつ入力',
+        }),
+    )
+
+    class Meta:
+        model = Payee
+        fields = ['name', 'notes']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-input', 'placeholder': '例: 店舗A、病院A、勤務先A'}),
+            'notes': forms.Textarea(attrs={'class': 'form-input', 'rows': 2, 'placeholder': '任意メモ'}),
+        }
+        labels = {
+            'name': '支払先名',
+            'notes': 'メモ',
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.help_text = ''
         if self.instance and self.instance.pk:
-            return self.instance.kind
-        return self.cleaned_data['kind']
+            self.fields['aliases_text'].initial = '\n'.join(
+                self.instance.aliases.order_by('alias').values_list('alias', flat=True)
+            )
+
+    def _alias_values(self) -> list[str]:
+        raw = self.cleaned_data.get('aliases_text') or ''
+        aliases = []
+        seen = set()
+        for line in raw.splitlines():
+            alias = line.strip()
+            normalized = normalize_master_name(alias)
+            if not normalized or normalized in seen:
+                continue
+            seen.add(normalized)
+            aliases.append(alias)
+        return aliases
+
+    def clean_name(self):
+        name = self.cleaned_data['name']
+        normalized = normalize_master_name(name)
+        qs = Payee.objects.filter(normalized_name=normalized)
+        if self.instance and self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise forms.ValidationError(f'「{name}」は既に使われています。別の名前を入力してください。')
+        alias_qs = PayeeAlias.objects.filter(normalized_alias=normalized)
+        if self.instance and self.instance.pk:
+            alias_qs = alias_qs.exclude(payee_id=self.instance.pk)
+        if alias_qs.exists():
+            raise forms.ValidationError(f'「{name}」は支払先別名として既に使われています。')
+        return name
+
+    def clean_aliases_text(self):
+        raw = self.cleaned_data.get('aliases_text') or ''
+        normalized_name = normalize_master_name(self.cleaned_data.get('name', ''))
+        seen = set()
+        for line in raw.splitlines():
+            alias = line.strip()
+            normalized = normalize_master_name(alias)
+            if not normalized:
+                continue
+            if normalized == normalized_name:
+                raise forms.ValidationError('支払先名と同じ別名は登録できません。')
+            if normalized in seen:
+                continue
+            seen.add(normalized)
+            alias_qs = PayeeAlias.objects.filter(normalized_alias=normalized)
+            if self.instance and self.instance.pk:
+                alias_qs = alias_qs.exclude(payee_id=self.instance.pk)
+            if alias_qs.exists():
+                raise forms.ValidationError(f'「{alias}」は別の支払先別名として既に使われています。')
+            payee_qs = Payee.objects.filter(normalized_name=normalized)
+            if self.instance and self.instance.pk:
+                payee_qs = payee_qs.exclude(pk=self.instance.pk)
+            if payee_qs.exists():
+                raise forms.ValidationError(f'「{alias}」は支払先名として既に使われています。')
+        return raw
+
+    def save(self, commit=True):
+        payee = super().save(commit=commit)
+        if commit:
+            self.save_aliases(payee)
+        return payee
+
+    def save_aliases(self, payee: Payee) -> None:
+        desired_aliases = self._alias_values()
+        payee.aliases.all().delete()
+        for alias in desired_aliases:
+            PayeeAlias.objects.create(payee=payee, alias=alias)
+
+
+class PaymentMethodForm(forms.ModelForm):
+    class Meta:
+        model = PaymentMethod
+        fields = [
+            'name', 'kind', 'account', 'settlement_account',
+            'closing_day', 'settlement_day', 'notes',
+        ]
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-input', 'placeholder': '例: 現金、カードA、電子マネーA'}),
+            'kind': forms.Select(attrs={'class': 'form-input'}),
+            'account': forms.Select(attrs={'class': 'form-input'}),
+            'settlement_account': forms.Select(attrs={'class': 'form-input'}),
+            'closing_day': forms.NumberInput(attrs={
+                'class': 'form-input', 'min': '0', 'max': '31', 'step': '1', 'inputmode': 'numeric',
+            }),
+            'settlement_day': forms.NumberInput(attrs={
+                'class': 'form-input', 'min': '0', 'max': '31', 'step': '1', 'inputmode': 'numeric',
+            }),
+            'notes': forms.Textarea(attrs={'class': 'form-input', 'rows': 2, 'placeholder': '任意メモ'}),
+        }
+        labels = {
+            'name': '支払手段名',
+            'kind': '種別',
+            'account': '通常利用口座',
+            'settlement_account': '引落元口座',
+            'closing_day': '締日',
+            'settlement_day': '引落日',
+            'notes': 'メモ',
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        account_qs = Account.objects.filter(is_active=True)
+        if self.instance and self.instance.pk:
+            if self.instance.account_id:
+                account_qs = account_qs | Account.objects.filter(pk=self.instance.account_id)
+            if self.instance.settlement_account_id:
+                account_qs = account_qs | Account.objects.filter(pk=self.instance.settlement_account_id)
+        account_qs = account_qs.distinct().order_by('kind', 'name')
+        self.fields['account'].queryset = account_qs
+        self.fields['settlement_account'].queryset = account_qs
+        self.fields['account'].empty_label = '未指定'
+        self.fields['settlement_account'].empty_label = '未指定'
+        for field in self.fields.values():
+            field.help_text = ''
+
+    def clean_name(self):
+        name = self.cleaned_data['name']
+        qs = PaymentMethod.objects.filter(name=name)
+        if self.instance and self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise forms.ValidationError(f'「{name}」は既に使われています。別の名前を入力してください。')
+        return name
 
 
 class CsvImportForm(forms.Form):
@@ -408,7 +590,7 @@ class MedicalExpenseForm(forms.ModelForm):
         widgets = {
             'paid_date': DateInput(attrs={'class': 'form-input', 'autocomplete': 'off'}),
             'patient': forms.TextInput(attrs={
-                'class': 'form-input', 'placeholder': '例: 受診者A / 受診者B / 子供A',
+                'class': 'form-input', 'placeholder': '例: 本人 / 配偶者 / 子A',
                 'list': 'medical-patient-suggestions',
                 'autocomplete': 'off',
             }),
@@ -543,16 +725,3 @@ class InsurancePremiumForm(forms.ModelForm):
         self.fields['notes'].required = False
         self.fields['submitted_in_year_end_adjustment'].required = False
         self.fields['annual_amount'].help_text = '控除証明書記載の「申告額」または「年間払込予定額」'
-
-    def clean(self):
-        cleaned = super().clean()
-        category = cleaned.get('category')
-        contract_type = cleaned.get('contract_type')
-        if (
-            category == InsurancePremium.InsuranceCategory.LIFE_CARE_MEDICAL
-            and contract_type == InsurancePremium.ContractType.OLD
-        ):
-            raise forms.ValidationError(
-                '介護医療保険料は新契約のみが対象です（2012/1/1 新設）。'
-            )
-        return cleaned

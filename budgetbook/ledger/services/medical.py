@@ -97,7 +97,10 @@ def sync_medical_expense_from_post(transaction: Transaction, post_data) -> Medic
     - medical_patient / medical_provider のいずれかが空なら何もしない
     - 既存の MedicalExpense があれば更新、なければ作成
     """
+    existing = MedicalExpense.objects.filter(transaction=transaction).first()
     if transaction.category.tax_tag != Category.TaxTag.MEDICAL:
+        if existing:
+            existing.delete()
         return None
 
     patient = (post_data.get('medical_patient') or '').strip()
@@ -115,7 +118,6 @@ def sync_medical_expense_from_post(transaction: Transaction, post_data) -> Medic
         reimbursement = 0
     reimbursement = max(0, min(reimbursement, transaction.amount))
 
-    existing = MedicalExpense.objects.filter(transaction=transaction).first()
     if existing:
         existing.paid_date = transaction.date
         existing.patient = patient[:50]
@@ -135,6 +137,54 @@ def sync_medical_expense_from_post(transaction: Transaction, post_data) -> Medic
         amount=transaction.amount,
         reimbursement=reimbursement,
     )
+
+
+def medical_fields_context(
+    *,
+    category_id: str | int | None,
+    transaction: Transaction | None = None,
+    field_data=None,
+    medical_fields_id: str = 'medical-fields',
+) -> dict:
+    """取引フォーム内の医療費詳細 partial 用 context を作る。"""
+    show = False
+    if category_id:
+        try:
+            category = Category.objects.filter(pk=int(category_id)).first()
+        except (TypeError, ValueError):
+            category = None
+        show = bool(category and category.tax_tag == Category.TaxTag.MEDICAL)
+
+    existing = None
+    if transaction and transaction.pk:
+        existing = MedicalExpense.objects.filter(transaction=transaction).first()
+
+    def value_from_field_data(name: str, fallback: str | int | None = ''):
+        if field_data is not None and name in field_data:
+            return field_data.get(name)
+        return fallback
+
+    return {
+        'show': show,
+        'medical_fields_id': medical_fields_id,
+        'category_choices': MedicalExpense.MedicalCategory.choices,
+        'medical_patient': value_from_field_data(
+            'medical_patient',
+            existing.patient if existing else '',
+        ),
+        'medical_provider': value_from_field_data(
+            'medical_provider',
+            existing.provider if existing else '',
+        ),
+        'medical_category': value_from_field_data(
+            'medical_category',
+            existing.category if existing else MedicalExpense.MedicalCategory.TREATMENT,
+        ),
+        'medical_reimbursement': value_from_field_data(
+            'medical_reimbursement',
+            existing.reimbursement if existing else 0,
+        ),
+    }
 
 
 def group_by_provider(expenses: Iterable[MedicalExpense]) -> list[dict]:

@@ -29,7 +29,7 @@ from ledger.services.medical import calculate_medical_deduction
 
 
 def _make_account():
-    return Account.objects.create(name='普通預金A', opening_balance=200000)
+    return Account.objects.create(name='メイン口座', opening_balance=200000)
 
 
 def _make_medical_category():
@@ -431,6 +431,114 @@ class TransactionFormMedicalSyncTest(TestCase):
             'memo': '',
         })
         self.assertEqual(MedicalExpense.objects.count(), before)
+
+    def test_inline_edit_form_shows_existing_medical_fields(self):
+        tx = Transaction.objects.create(
+            date=date(2025, 6, 15),
+            account=self.account,
+            category=self.cat_medical,
+            amount=5500,
+            description='既存クリニック',
+        )
+        MedicalExpense.objects.create(
+            transaction=tx,
+            paid_date=tx.date,
+            patient='本人',
+            provider='既存クリニック',
+            category=MedicalExpense.MedicalCategory.TREATMENT,
+            amount=5500,
+            reimbursement=500,
+        )
+
+        resp = self.client.get(reverse('ledger:transaction_inline_update', args=[tx.pk]))
+
+        self.assertEqual(resp.status_code, 200)
+        body = resp.content.decode('utf-8')
+        self.assertIn('medical_patient', body)
+        self.assertIn('value="本人"', body)
+        self.assertIn('medical_provider', body)
+        self.assertIn('value="既存クリニック"', body)
+        self.assertIn('medical_reimbursement', body)
+        self.assertIn('value="500"', body)
+
+    def test_inline_edit_post_updates_medical_expense(self):
+        tx = Transaction.objects.create(
+            date=date(2025, 6, 15),
+            account=self.account,
+            category=self.cat_medical,
+            amount=5500,
+            description='既存クリニック',
+        )
+        MedicalExpense.objects.create(
+            transaction=tx,
+            paid_date=tx.date,
+            patient='本人',
+            provider='既存クリニック',
+            category=MedicalExpense.MedicalCategory.TREATMENT,
+            amount=5500,
+            reimbursement=500,
+        )
+
+        resp = self.client.post(
+            reverse('ledger:transaction_inline_update', args=[tx.pk]),
+            {
+                'date': '2025-06-15',
+                'account': str(self.account.pk),
+                'kind': Category.Kind.EXPENSE,
+                'category': str(self.cat_medical.pk),
+                'amount': 8800,
+                'description': '更新クリニック',
+                'memo': '',
+                'medical_patient': '配偶者',
+                'medical_provider': '更新クリニック',
+                'medical_category': MedicalExpense.MedicalCategory.MEDICINE,
+                'medical_reimbursement': 800,
+            },
+            HTTP_HX_REQUEST='true',
+        )
+
+        self.assertEqual(resp.status_code, 200)
+        expense = MedicalExpense.objects.get(transaction=tx)
+        self.assertEqual(expense.patient, '配偶者')
+        self.assertEqual(expense.provider, '更新クリニック')
+        self.assertEqual(expense.category, MedicalExpense.MedicalCategory.MEDICINE)
+        self.assertEqual(expense.amount, 8800)
+        self.assertEqual(expense.reimbursement, 800)
+
+    def test_inline_edit_to_non_medical_category_deletes_linked_medical_expense(self):
+        tx = Transaction.objects.create(
+            date=date(2025, 6, 15),
+            account=self.account,
+            category=self.cat_medical,
+            amount=5500,
+            description='既存クリニック',
+        )
+        MedicalExpense.objects.create(
+            transaction=tx,
+            paid_date=tx.date,
+            patient='本人',
+            provider='既存クリニック',
+            category=MedicalExpense.MedicalCategory.TREATMENT,
+            amount=5500,
+            reimbursement=500,
+        )
+
+        resp = self.client.post(
+            reverse('ledger:transaction_inline_update', args=[tx.pk]),
+            {
+                'date': '2025-06-15',
+                'account': str(self.account.pk),
+                'kind': Category.Kind.EXPENSE,
+                'category': str(self.cat_food.pk),
+                'amount': 8800,
+                'description': 'スーパー',
+                'memo': '',
+            },
+            HTTP_HX_REQUEST='true',
+        )
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertFalse(MedicalExpense.objects.filter(transaction=tx).exists())
 
 
 # ===========================================================================

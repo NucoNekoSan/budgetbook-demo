@@ -1,10 +1,14 @@
-<div id="medical-fields"
+<div id="{{ medical_fields_id|default:'medical-fields' }}"
      {% if not show %}data-hidden="true"{% endif %}
-     hx-target="this"
+     hx-get="{% url 'ledger:transaction_medical_fields' %}"
+     hx-trigger="change from:closest form"
+     hx-include="closest form"
+     hx-target="#{{ medical_fields_id|default:'medical-fields' }}"
      hx-swap="outerHTML">
+  <input type="hidden" name="medical_fields_id" value="{{ medical_fields_id|default:'medical-fields' }}">
   {% if show %}
-    <div class="form-grid__section" style="background: #f6f8fb; padding: 12px; border-radius: 8px; margin-top: 8px;">
-      <div class="meta" style="margin-bottom: 8px;">
+    <div class="form-grid__section form-grid__section--soft u-mt-8">
+      <div class="meta u-mb-8">
         <strong>医療費控除の詳細</strong>
         — このカテゴリは医療費控除タグです。確定申告用に詳細を入力してください。
       </div>
@@ -12,7 +16,7 @@
       <div class="field">
         <label for="id_medical_patient">受診者</label>
         <input type="text" name="medical_patient" id="id_medical_patient" class="form-input"
-               placeholder="例: 受診者A / 受診者B / 子供A"
+               placeholder="例: 本人 / 配偶者 / 子A"
                autocomplete="off" value="{{ medical_patient|default:'' }}">
       </div>
 

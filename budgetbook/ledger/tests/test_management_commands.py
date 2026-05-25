@@ -13,7 +13,7 @@ from ledger.models import Account, Category, MonthlyClosing, Transaction
 class CheckAccountingIntegrityCommandTest(TestCase):
     @classmethod
     def setUpTestData(cls):
-        cls.account = Account.objects.create(name='普通預金A', opening_balance=10000)
+        cls.account = Account.objects.create(name='メイン口座', opening_balance=10000)
         cls.income = Category.objects.create(name='給与', kind=Category.Kind.INCOME)
 
     def test_no_monthly_closings_is_ok(self):
@@ -76,7 +76,7 @@ class CheckAccountingIntegrityCommandTest(TestCase):
         body = out.getvalue()
         self.assertIn('DRIFT: 2026-04 monthly closing differs from current ledger.', body)
         self.assertIn('income: +5000', body)
-        self.assertIn('account 普通預金A: +5000', body)
+        self.assertIn('account メイン口座: +5000', body)
 
     def test_drift_warn_only_exits_successfully(self):
         MonthlyClosing.objects.create(

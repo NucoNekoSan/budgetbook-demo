@@ -6,12 +6,16 @@ from .models import (
     AnnualIncomeSnapshot,
     AuditLog,
     Category,
+    CategoryChangeLog,
     ExpenseGroup,
     ExpenseGroupCategory,
     InsurancePremium,
     LoanProfile,
     MedicalExpense,
     MonthlyClosing,
+    Payee,
+    PayeeAlias,
+    PaymentMethod,
     Transaction,
     Transfer,
 )
@@ -40,13 +44,74 @@ class CategoryAdmin(admin.ModelAdmin):
     list_editable = ('section',)
 
 
+@admin.register(CategoryChangeLog)
+class CategoryChangeLogAdmin(admin.ModelAdmin):
+    list_display = (
+        'created_at', 'category', 'action',
+        'affected_transaction_count', 'includes_closed_month', 'changed_by',
+    )
+    list_filter = ('action', 'includes_closed_month', 'created_at')
+    search_fields = ('category__name', 'reason')
+    readonly_fields = (
+        'created_at', 'updated_at', 'category', 'action',
+        'before', 'after', 'affected_transaction_count',
+        'includes_closed_month', 'reason', 'changed_by',
+    )
+    date_hierarchy = 'created_at'
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def has_view_permission(self, request, obj=None):
+        return request.user.is_active and request.user.is_staff
+
+
 @admin.register(Transaction)
 class TransactionAdmin(admin.ModelAdmin):
-    list_display = ('date', 'description', 'account', 'category', 'amount')
-    list_filter = ('category__kind', 'account', 'category', 'date')
-    search_fields = ('description', 'memo')
-    autocomplete_fields = ('account', 'category')
+    list_display = ('date', 'description', 'payee', 'payment_method', 'account', 'category', 'amount')
+    list_filter = ('category__kind', 'account', 'category', 'payee', 'payment_method', 'date')
+    search_fields = ('description', 'memo', 'payee__name', 'payment_method__name')
+    autocomplete_fields = ('account', 'category', 'payee', 'payment_method')
     date_hierarchy = 'date'
+
+
+class PayeeAliasInline(admin.TabularInline):
+    model = PayeeAlias
+    extra = 1
+
+
+@admin.register(Payee)
+class PayeeAdmin(admin.ModelAdmin):
+    list_display = ('name', 'is_active', 'updated_at')
+    list_filter = ('is_active',)
+    search_fields = ('name', 'aliases__alias')
+    readonly_fields = ('normalized_name',)
+    inlines = [PayeeAliasInline]
+
+
+@admin.register(PayeeAlias)
+class PayeeAliasAdmin(admin.ModelAdmin):
+    list_display = ('alias', 'payee', 'updated_at')
+    search_fields = ('alias', 'payee__name')
+    autocomplete_fields = ('payee',)
+    readonly_fields = ('normalized_alias',)
+
+
+@admin.register(PaymentMethod)
+class PaymentMethodAdmin(admin.ModelAdmin):
+    list_display = (
+        'name', 'kind', 'account', 'settlement_account',
+        'closing_day', 'settlement_day', 'is_active', 'updated_at',
+    )
+    list_filter = ('kind', 'is_active')
+    search_fields = ('name', 'notes')
+    autocomplete_fields = ('account', 'settlement_account')
 
 
 class ExpenseGroupCategoryInline(admin.TabularInline):

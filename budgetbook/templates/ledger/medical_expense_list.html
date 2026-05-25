@@ -25,8 +25,10 @@
         </div>
       </div>
 
+      {% include 'ledger/partials/tax_calculation_notice.html' %}
+
       {% if not summary.gross_income_known %}
-        <div class="helper" style="margin-top: 12px; background: var(--c-warn-bg, #fff7e6); padding: 12px; border-radius: 8px;">
+        <div class="helper helper--compact u-mt-12">
           <strong>⚠ {{ year }} 年の総所得が未登録です。</strong>
           現在は控除基準額 10 万円ラインで暫定計算しています（総所得 200 万円超の世帯と同等）。
           総所得 200 万円以下の場合は控除額が変わります。
@@ -34,7 +36,7 @@
         </div>
       {% endif %}
 
-      <div class="cards" style="margin-top: 16px;">
+      <div class="cards u-mt-16">
         <div class="card">
           <div class="card__label">支払合計</div>
           <div class="card__value">{{ summary.total_paid|yen }}</div>
@@ -72,7 +74,7 @@
       </div>
 
       {% if patient_rows %}
-        <h2 class="section-title" style="margin-top: 24px;">受診者別小計</h2>
+        <h2 class="section-title u-mt-24">受診者別小計</h2>
         <table class="table">
           <thead>
             <tr>
@@ -96,7 +98,7 @@
           </tbody>
         </table>
 
-        <h2 class="section-title" style="margin-top: 24px;">医療機関別小計</h2>
+        <h2 class="section-title u-mt-24">医療機関別小計</h2>
         <table class="table">
           <thead>
             <tr>
@@ -120,7 +122,7 @@
           </tbody>
         </table>
 
-        <h2 class="section-title" style="margin-top: 24px;">明細</h2>
+        <h2 class="section-title u-mt-24">明細</h2>
         <table class="table">
           <thead>
             <tr>
@@ -154,9 +156,9 @@
                 </td>
                 <td>
                   <a href="{% url 'ledger:medical_expense_update' e.pk %}" class="btn btn--ghost btn--sm">編集</a>
-                  <form method="post" action="{% url 'ledger:medical_expense_delete' e.pk %}" style="display:inline">
+                  <form method="post" action="{% url 'ledger:medical_expense_delete' e.pk %}" class="u-inline" data-confirm="この医療費明細を削除しますか？">
                     {% csrf_token %}
-                    <button type="submit" class="btn btn--danger btn--sm" onclick="return confirm('この医療費明細を削除しますか？')">削除</button>
+                    <button type="button" class="btn btn--danger btn--sm" data-confirm-submit>削除</button>
                   </form>
                 </td>
               </tr>
@@ -164,7 +166,7 @@
           </tbody>
         </table>
       {% else %}
-        <div class="helper" style="margin-top: 16px;">
+        <div class="helper u-mt-16">
           {{ year }} 年の医療費明細はまだ登録されていません。
           <br>
           「+ 医療費を追加」ボタンから登録するか、取引フォームで医療費控除タグのカテゴリを選ぶと自動で詳細入力欄が表示されます。

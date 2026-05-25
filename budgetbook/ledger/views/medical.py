@@ -27,6 +27,7 @@ from ..services.medical import (
     calculate_medical_deduction,
     group_by_patient,
     group_by_provider,
+    medical_fields_context,
 )
 from .helpers import record_audit
 
@@ -284,17 +285,10 @@ def transaction_medical_fields(request: HttpRequest) -> HttpResponse:
 
     tax_tag != MEDICAL の場合は空の div を返す（フィールド非表示）。
     """
-    from ..models import Category
     cat_id = (request.GET.get('category') or request.GET.get('category_id') or '').strip()
-    show = False
-    if cat_id:
-        try:
-            cat = Category.objects.filter(pk=int(cat_id)).first()
-        except (TypeError, ValueError):
-            cat = None
-        if cat and cat.tax_tag == Category.TaxTag.MEDICAL:
-            show = True
-    return render(request, 'ledger/partials/medical_fields.html', {
-        'show': show,
-        'category_choices': MedicalExpense.MedicalCategory.choices,
-    })
+    context = medical_fields_context(
+        category_id=cat_id,
+        field_data=request.GET,
+        medical_fields_id=request.GET.get('medical_fields_id') or 'medical-fields',
+    )
+    return render(request, 'ledger/partials/medical_fields.html', context)

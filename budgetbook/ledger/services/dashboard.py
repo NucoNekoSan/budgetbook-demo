@@ -70,7 +70,7 @@ def get_dashboard_context(target_month: date, page: int = 1, filters: dict | Non
     start = target_month
     end = shift_month(target_month, 1)
 
-    base_qs = Transaction.objects.select_related('account', 'category')
+    base_qs = Transaction.objects.select_related('account', 'category', 'payee', 'payment_method')
     monthly_qs = base_qs.filter(date__gte=start, date__lt=end)
 
     income = monthly_qs.filter(category__kind=Category.Kind.INCOME).aggregate(
@@ -114,7 +114,7 @@ def get_dashboard_context(target_month: date, page: int = 1, filters: dict | Non
     opening_balances = all_account_balances(prev_day) if has_accounts else {}
     closing_balances = all_account_balances(m_end) if has_accounts else {}
     # 家計簿ページの「月末残高」「月初繰越」は手元現金感を優先して資産口座のみで集計。
-    # 負債（クレジットカード・ローン等）は /balance-sheet/ で確認する役割分離。
+    # 負債（クレカリボ・ローン等）は /balance-sheet/ で確認する役割分離。
     asset_pks = set(
         Account.objects.filter(kind=Account.Kind.ASSET).values_list('pk', flat=True)
     )
@@ -138,7 +138,11 @@ def get_dashboard_context(target_month: date, page: int = 1, filters: dict | Non
     )
     filtered_tx_qs = monthly_qs
     if filters.get('q'):
-        filtered_tx_qs = filtered_tx_qs.filter(description__icontains=filters['q'])
+        filtered_tx_qs = filtered_tx_qs.filter(
+            Q(description__icontains=filters['q'])
+            | Q(payee__name__icontains=filters['q'])
+            | Q(payment_method__name__icontains=filters['q'])
+        )
         transfer_qs = transfer_qs.filter(description__icontains=filters['q'])
     if filters.get('account'):
         filtered_tx_qs = filtered_tx_qs.filter(account_id=filters['account'])

@@ -19,7 +19,7 @@ class AccountKindFieldTest(TestCase):
 
     def test_liability_account_can_be_created(self):
         a = Account.objects.create(
-            name='クレジットカードA', kind=Account.Kind.LIABILITY, opening_balance=0,
+            name='楽天カード', kind=Account.Kind.LIABILITY, opening_balance=0,
         )
         self.assertEqual(a.kind, 'liability')
 
@@ -155,7 +155,7 @@ class BalanceSheetWithLoanTest(TestCase):
         self.assertEqual(bs['annual_interest_total'], 60000)
 
     def test_zero_rate_loan_no_interest(self):
-        liab = Account.objects.create(name='分割返済C', kind=Account.Kind.LIABILITY, opening_balance=-50000)
+        liab = Account.objects.create(name='市返還金', kind=Account.Kind.LIABILITY, opening_balance=-50000)
         LoanProfile.objects.create(account=liab, annual_rate_bp=0, method=LoanProfile.Method.OTHER)
         bs = balance_sheet(date.today())
         item = next(x for x in bs['liabilities'] if x['account'].pk == liab.pk)

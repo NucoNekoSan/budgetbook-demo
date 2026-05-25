@@ -12,7 +12,7 @@ class TaxDeductionsViewTest(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.user = User.objects.create_user(username='td', password='pass')
-        cls.account = Account.objects.create(name='普通預金A', opening_balance=100000)
+        cls.account = Account.objects.create(name='メイン口座', opening_balance=100000)
         cls.cat_medical = Category.objects.create(
             name='医療費', kind=Category.Kind.EXPENSE, tax_tag=Category.TaxTag.MEDICAL,
         )

@@ -55,14 +55,14 @@
                 <td data-label="使用状況">
                   {% if cat.can_delete %}
                     <span class="chip chip--neutral">未使用</span>
-                    {% if cat.group_count %}
-                      <span class="meta meta--inline">分析G {{ cat.group_count }}</span>
+                    {% if cat.group_count or cat.change_log_count %}
+                      <span class="meta meta--inline">分析G {{ cat.group_count }} / 履歴 {{ cat.change_log_count }}</span>
                     {% else %}
                       <span class="meta meta--inline">削除可</span>
                     {% endif %}
                   {% else %}
                     <span class="chip chip--neutral">使用中</span>
-                    <span class="meta meta--inline">取引 {{ cat.transaction_count }} / 分析G {{ cat.group_count }}</span>
+                    <span class="meta meta--inline">取引 {{ cat.transaction_count }} / 分析G {{ cat.group_count }} / 履歴 {{ cat.change_log_count }}</span>
                   {% endif %}
                 </td>
                 <td data-label="状態">

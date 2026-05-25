@@ -13,7 +13,16 @@ from typing import Iterable
 
 from django.db.models import Q
 
-from ..models import Account, Category, MonthlyClosing, Transaction
+from ..models import (
+    Account,
+    Category,
+    MonthlyClosing,
+    Payee,
+    PayeeAlias,
+    PaymentMethod,
+    Transaction,
+    normalize_master_name,
+)
 from .csv_safe import CSV_FORMULA_PREFIXES
 from .dates import clamp_future_month, shift_month
 
@@ -39,6 +48,11 @@ class PreviewRow:
     date: date | None = None
     account_id: int | None = None
     category_id: int | None = None
+    payee_id: int | None = None
+    payee_name: str = ''
+    payment_method_id: int | None = None
+    payment_method_name: str = ''
+    payment_method_warning: str = ''
     amount: int | None = None
     description: str = ''
     memo: str = ''
@@ -102,6 +116,18 @@ def build_preview_rows(rows: list[list[str]]) -> list[PreviewRow]:
     # 口座・カテゴリ・締め済み月を先読み
     accounts = {a.name: a for a in Account.objects.filter(is_active=True)}
     categories = {c.name: c for c in Category.objects.filter(is_active=True)}
+    payees = {
+        p.normalized_name: p
+        for p in Payee.objects.filter(is_active=True)
+    }
+    aliases = {
+        a.normalized_alias: a.payee
+        for a in PayeeAlias.objects.select_related('payee').filter(payee__is_active=True)
+    }
+    payment_methods = {
+        pm.name: pm
+        for pm in PaymentMethod.objects.filter(is_active=True)
+    }
     closed_months = set(MonthlyClosing.objects.values_list('month', flat=True))
     future_cutoff = clamp_future_month(date.today())
     future_limit = shift_month(future_cutoff, 1)  # 翌月以降を未来扱い
@@ -114,8 +140,21 @@ def build_preview_rows(rows: list[list[str]]) -> list[PreviewRow]:
         date_s, kind_s, account_s, category_s, amount_s, description_s, memo_s = [
             _normalize(c) for c in cells
         ]
+        payment_method_s = _normalize(row[len(EXPECTED_HEADER)]) if len(row) > len(EXPECTED_HEADER) else ''
         pr.description = description_s
         pr.memo = memo_s
+        normalized_description = normalize_master_name(description_s)
+        payee = aliases.get(normalized_description) or payees.get(normalized_description)
+        if payee:
+            pr.payee_id = payee.pk
+            pr.payee_name = payee.name
+        if payment_method_s:
+            payment_method = payment_methods.get(payment_method_s)
+            if payment_method:
+                pr.payment_method_id = payment_method.pk
+                pr.payment_method_name = payment_method.name
+            else:
+                pr.payment_method_warning = f'支払手段が見つかりません: {payment_method_s!r}'
 
         if _check_csv_unsafe(description_s) or _check_csv_unsafe(memo_s):
             pr.csv_unsafe = True
@@ -234,6 +273,8 @@ def commit_rows(preview_rows: Iterable[PreviewRow], selected_indices: set[int]) 
             date=pr.date,
             account_id=pr.account_id,
             category_id=pr.category_id,
+            payee_id=pr.payee_id,
+            payment_method_id=pr.payment_method_id,
             amount=pr.amount,
             description=pr.description[:120],
             memo=pr.memo,

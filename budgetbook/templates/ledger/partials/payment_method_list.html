@@ -1,0 +1,134 @@
+<div class="panel">
+  <div class="panel__body">
+    <div class="toolbar">
+      <div>
+        <h2 class="section-title">支払手段</h2>
+        <div class="meta">現金、銀行口座、カード、電子マネーなど、どう支払ったかを任意で管理します。</div>
+      </div>
+      <button
+        class="btn btn--ghost"
+        type="button"
+        hx-get="{% url 'ledger:payment_method_create' %}"
+        hx-target="#payment-method-list"
+        hx-swap="innerHTML"
+      >+ 追加</button>
+    </div>
+
+    {% if flash_message %}
+      <div class="flash__message">{{ flash_message }}</div>
+    {% endif %}
+
+    {% if show_payment_method_form or not payment_methods %}
+      {% include 'ledger/partials/payment_method_form.html' with form=payment_method_form form_title='支払手段を追加' submit_label='追加する' is_new=True %}
+    {% endif %}
+
+    {% if edit_payment_method_pk %}
+      {% include 'ledger/partials/payment_method_form.html' with form=edit_payment_method_form form_title='支払手段を編集' submit_label='更新する' edit_pk=edit_payment_method_pk is_new=False %}
+    {% endif %}
+
+    {% if payment_methods %}
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>支払手段名</th>
+              <th>種別</th>
+              <th>口座</th>
+              <th>締日/引落日</th>
+              <th>使用状況</th>
+              <th>状態</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for pm in payment_methods %}
+              <tr class="{% if not pm.is_active %}row--inactive{% endif %}">
+                <td data-label="支払手段名">
+                  <strong>{{ pm.name }}</strong>
+                  {% if pm.notes %}<div class="meta">{{ pm.notes|truncatechars:40 }}</div>{% endif %}
+                </td>
+                <td data-label="種別">
+                  <div class="settings-token-list">
+                    <span class="chip chip--neutral">{{ pm.get_kind_display }}</span>
+                  </div>
+                </td>
+                <td data-label="口座">
+                  <div class="settings-account-summary">
+                    <div class="meta">通常: {% if pm.account %}{{ pm.account.name }}{% else %}未指定{% endif %}</div>
+                    <div class="meta">引落元: {% if pm.settlement_account %}{{ pm.settlement_account.name }}{% else %}未指定{% endif %}</div>
+                  </div>
+                </td>
+                <td data-label="締日/引落日">
+                  <div class="settings-date-pair">
+                    <span class="meta">締日 {% if pm.closing_day %}{{ pm.closing_day }}日{% else %}未設定{% endif %}</span>
+                    <span class="meta">引落 {% if pm.settlement_day %}{{ pm.settlement_day }}日{% else %}未設定{% endif %}</span>
+                  </div>
+                </td>
+                <td data-label="使用状況">
+                  <div class="settings-status-pair">
+                    {% if pm.can_delete %}
+                      <span class="chip chip--neutral">未使用</span>
+                      <span class="meta">削除可</span>
+                    {% else %}
+                      <span class="chip chip--neutral">使用中</span>
+                      <span class="meta">取引 {{ pm.transaction_count }}</span>
+                    {% endif %}
+                  </div>
+                </td>
+                <td data-label="状態">
+                  {% if pm.is_active %}
+                    <span class="chip chip--income">有効</span>
+                  {% else %}
+                    <span class="chip chip--expense">無効</span>
+                  {% endif %}
+                </td>
+                <td data-label="操作">
+                  <div class="inline-actions">
+                    <button
+                      class="btn btn--soft btn--sm"
+                      type="button"
+                      aria-label="{{ pm.name }} を編集"
+                      hx-get="{% url 'ledger:payment_method_update' pm.pk %}?inline=1"
+                      hx-target="#payment-method-inline-edit-{{ pm.pk }}"
+                      hx-swap="outerHTML"
+                    >✎ 編集</button>
+                    <button
+                      class="btn btn--soft btn--sm"
+                      type="button"
+                      aria-label="{{ pm.name }} を{% if pm.is_active %}無効化{% else %}有効化{% endif %}"
+                      hx-post="{% url 'ledger:payment_method_toggle' pm.pk %}"
+                      hx-target="#payment-method-list"
+                      hx-swap="innerHTML"
+                    >{% if pm.is_active %}停止{% else %}再開{% endif %}</button>
+                    {% if pm.can_delete %}
+                    <button
+                      class="btn btn--danger btn--sm"
+                      type="button"
+                      aria-label="{{ pm.name }} を削除"
+                      hx-post="{% url 'ledger:payment_method_delete' pm.pk %}"
+                      hx-target="#payment-method-list"
+                      hx-swap="innerHTML"
+                      hx-confirm="「{{ pm.name }}」を完全に削除します。取引で使われていないことを確認しました。よろしいですか？"
+                    >🗑 削除</button>
+                    {% else %}
+                    <button
+                      class="btn btn--sm"
+                      type="button"
+                      disabled
+                      aria-label="{{ pm.name }} は取引があるため削除できません"
+                      title="取引が紐づいているため削除できません。先に「停止」で無効化してください。"
+                    >🚫 削除不可</button>
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+              <tr id="payment-method-inline-edit-{{ pm.pk }}" class="inline-edit-placeholder"><td colspan="7"></td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% elif not show_payment_method_form %}
+      <div class="empty">支払手段がまだ登録されていません。「+ 追加」から支払手段を作成してください。</div>
+    {% endif %}
+  </div>
+</div>

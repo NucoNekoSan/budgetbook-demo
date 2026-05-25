@@ -118,6 +118,14 @@ from .settings_views import (  # noqa: F401
     category_delete,
     category_toggle,
     category_update,
+    payee_create,
+    payee_delete,
+    payee_toggle,
+    payee_update,
+    payment_method_create,
+    payment_method_delete,
+    payment_method_toggle,
+    payment_method_update,
     settings_page,
 )
 from .transactions import (  # noqa: F401

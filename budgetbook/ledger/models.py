@@ -4,6 +4,10 @@ from django.conf import settings
 from django.db import models
 
 
+def normalize_master_name(value: str) -> str:
+    return ' '.join((value or '').strip().casefold().split())
+
+
 class TimeStampedModel(models.Model):
     created_at = models.DateTimeField('作成日時', auto_now_add=True)
     updated_at = models.DateTimeField('更新日時', auto_now=True)
@@ -214,11 +218,213 @@ class Category(TimeStampedModel):
     def __str__(self) -> str:
         return f'{self.get_kind_display()} | {self.name}'
 
+    def clean(self) -> None:
+        super().clean()
+        if not self.pk:
+            return
+        original = type(self).objects.filter(pk=self.pk).values('kind').first()
+        if (
+            original
+            and original['kind'] != self.kind
+            and Transaction.objects.filter(category_id=self.pk).exists()
+        ):
+            raise ValidationError({
+                'kind': '使用済みカテゴリの区分は変更できません。新カテゴリを作成し、必要な取引を再分類してください。',
+            })
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+
+class CategoryChangeLog(TimeStampedModel):
+    class Action(models.TextChoices):
+        UPDATE = 'update', 'カテゴリ編集'
+        RECLASSIFY = 'reclassify', '取引再分類'
+        DEACTIVATE = 'deactivate', '無効化'
+        REACTIVATE = 'reactivate', '有効化'
+
+    category = models.ForeignKey(
+        Category,
+        on_delete=models.PROTECT,
+        related_name='change_logs',
+        verbose_name='対象カテゴリ',
+    )
+    action = models.CharField('操作', max_length=20, choices=Action.choices, db_index=True)
+    before = models.JSONField('変更前', default=dict, blank=True)
+    after = models.JSONField('変更後', default=dict, blank=True)
+    affected_transaction_count = models.PositiveIntegerField('対象取引数', default=0)
+    includes_closed_month = models.BooleanField('締め済み月を含む', default=False)
+    reason = models.TextField('理由', blank=True)
+    changed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name='操作ユーザー',
+    )
+
+    class Meta:
+        verbose_name = 'カテゴリ変更履歴'
+        verbose_name_plural = 'カテゴリ変更履歴'
+        ordering = ['-created_at', '-id']
+        indexes = [
+            models.Index(fields=['action']),
+            models.Index(fields=['created_at']),
+        ]
+
+    def __str__(self) -> str:
+        return f'{self.created_at:%Y-%m-%d %H:%M:%S} {self.get_action_display()} {self.category.name}'
+
+
+class Payee(TimeStampedModel):
+    name = models.CharField('支払先名', max_length=120, unique=True)
+    normalized_name = models.CharField('正規化支払先名', max_length=120, unique=True, editable=False)
+    is_active = models.BooleanField('有効', default=True)
+    notes = models.TextField('メモ', blank=True)
+
+    class Meta:
+        verbose_name = '支払先'
+        verbose_name_plural = '支払先'
+        ordering = ['name']
+
+    def __str__(self) -> str:
+        return self.name
+
+    def clean(self) -> None:
+        super().clean()
+        self.normalized_name = normalize_master_name(self.name)
+        if not self.normalized_name:
+            raise ValidationError({'name': '支払先名を入力してください。'})
+        alias_qs = PayeeAlias.objects.filter(normalized_alias=self.normalized_name)
+        if self.pk:
+            alias_qs = alias_qs.exclude(payee_id=self.pk)
+        if alias_qs.exists():
+            raise ValidationError({'name': '同じ表記が支払先別名として既に使われています。'})
+
+    def save(self, *args, **kwargs):
+        self.normalized_name = normalize_master_name(self.name)
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+
+class PayeeAlias(TimeStampedModel):
+    payee = models.ForeignKey(
+        Payee,
+        on_delete=models.CASCADE,
+        related_name='aliases',
+        verbose_name='支払先',
+    )
+    alias = models.CharField('別名', max_length=120)
+    normalized_alias = models.CharField('正規化別名', max_length=120, unique=True, editable=False)
+
+    class Meta:
+        verbose_name = '支払先別名'
+        verbose_name_plural = '支払先別名'
+        ordering = ['alias']
+
+    def __str__(self) -> str:
+        return f'{self.alias} → {self.payee.name}'
+
+    def clean(self) -> None:
+        super().clean()
+        self.normalized_alias = normalize_master_name(self.alias)
+        if not self.normalized_alias:
+            raise ValidationError({'alias': '別名を入力してください。'})
+        if self.payee_id and self.payee.normalized_name == self.normalized_alias:
+            raise ValidationError({'alias': '支払先名と同じ別名は登録できません。'})
+        payee_qs = Payee.objects.filter(normalized_name=self.normalized_alias)
+        if self.payee_id:
+            payee_qs = payee_qs.exclude(pk=self.payee_id)
+        if payee_qs.exists():
+            raise ValidationError({'alias': '同じ表記が支払先名として既に使われています。'})
+
+    def save(self, *args, **kwargs):
+        self.normalized_alias = normalize_master_name(self.alias)
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+
+class PaymentMethod(TimeStampedModel):
+    class Kind(models.TextChoices):
+        CASH = 'cash', '現金'
+        BANK = 'bank', '銀行口座'
+        CREDIT_CARD = 'credit_card', 'クレジットカード'
+        DEBIT_CARD = 'debit_card', 'デビットカード'
+        ELECTRONIC_MONEY = 'electronic_money', '電子マネー'
+        QR = 'qr', 'QR決済'
+        OTHER = 'other', 'その他'
+
+    name = models.CharField('支払手段名', max_length=100, unique=True)
+    kind = models.CharField('種別', max_length=30, choices=Kind.choices, db_index=True)
+    account = models.ForeignKey(
+        Account,
+        on_delete=models.PROTECT,
+        related_name='payment_methods',
+        null=True,
+        blank=True,
+        verbose_name='通常利用口座',
+        help_text='この支払手段で通常残高が動く口座。クレジットカードなら負債口座。',
+    )
+    settlement_account = models.ForeignKey(
+        Account,
+        on_delete=models.PROTECT,
+        related_name='settlement_payment_methods',
+        null=True,
+        blank=True,
+        verbose_name='引落元口座',
+        help_text='クレジットカード等の引落元となる資産口座。',
+    )
+    closing_day = models.PositiveSmallIntegerField('締日', default=0)
+    settlement_day = models.PositiveSmallIntegerField('引落日', default=0)
+    is_active = models.BooleanField('有効', default=True)
+    notes = models.TextField('メモ', blank=True)
+
+    class Meta:
+        verbose_name = '支払手段'
+        verbose_name_plural = '支払手段'
+        ordering = ['name']
+
+    def __str__(self) -> str:
+        return self.name
+
+    def clean(self) -> None:
+        super().clean()
+        errors = {}
+        if self.closing_day < 0 or self.closing_day > 31:
+            errors['closing_day'] = '締日は 0〜31 の範囲で入力してください。'
+        if self.settlement_day < 0 or self.settlement_day > 31:
+            errors['settlement_day'] = '引落日は 0〜31 の範囲で入力してください。'
+        if self.settlement_account_id and self.settlement_account.kind != Account.Kind.ASSET:
+            errors['settlement_account'] = '引落元口座は資産口座を指定してください。'
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
 
 class Transaction(TimeStampedModel):
     date = models.DateField('日付')
     account = models.ForeignKey(Account, on_delete=models.PROTECT, verbose_name='口座')
     category = models.ForeignKey(Category, on_delete=models.PROTECT, verbose_name='カテゴリ')
+    payee = models.ForeignKey(
+        Payee,
+        on_delete=models.PROTECT,
+        related_name='transactions',
+        null=True,
+        blank=True,
+        verbose_name='支払先',
+    )
+    payment_method = models.ForeignKey(
+        PaymentMethod,
+        on_delete=models.PROTECT,
+        related_name='transactions',
+        null=True,
+        blank=True,
+        verbose_name='支払手段',
+    )
     amount = models.IntegerField(
         '金額',
         validators=[MinValueValidator(1)],
@@ -592,6 +798,10 @@ class AnnualIncomeSnapshot(TimeStampedModel):
 
     def __str__(self) -> str:
         return f'{self.year} 年: ¥{self.gross_income:,}'
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
 
 
 class InsurancePremium(TimeStampedModel):

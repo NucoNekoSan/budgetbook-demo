@@ -20,13 +20,13 @@ class AccrueLoanPrincipalTest(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.bank = Account.objects.create(
-            name='普通預金A', kind=Account.Kind.ASSET, opening_balance=500000,
+            name='メイン口座', kind=Account.Kind.ASSET, opening_balance=500000,
         )
         cls.revolving = Account.objects.create(
-            name='クレジットカードA', kind=Account.Kind.LIABILITY, opening_balance=-500000,
+            name='カードローンA', kind=Account.Kind.LIABILITY, opening_balance=-100000,
         )
         cls.zero_loan = Account.objects.create(
-            name='分割返済B', kind=Account.Kind.LIABILITY, opening_balance=-200000,
+            name='教育ローン', kind=Account.Kind.LIABILITY, opening_balance=-50000,
         )
         cls.profile_active = LoanProfile.objects.create(
             account=cls.revolving,
@@ -51,8 +51,8 @@ class AccrueLoanPrincipalTest(TestCase):
     def test_dry_run_lists_eligible(self):
         output = self._call(month='2026-06')
         self.assertIn('[DRY-RUN]', output)
-        self.assertIn('クレジットカードA', output)
-        self.assertIn('分割返済B', output)  # 0% でも対象
+        self.assertIn('カードローンA', output)
+        self.assertIn('教育ローン', output)  # 0% でも対象
         self.assertIn('¥30,000', output)
         self.assertIn('¥5,000', output)
         self.assertEqual(Transfer.objects.count(), 0)
@@ -61,14 +61,14 @@ class AccrueLoanPrincipalTest(TestCase):
         self.profile_active.source_account = None
         self.profile_active.save()
         output = self._call(month='2026-06')
-        self.assertNotIn('クレジットカードA', output)
-        self.assertIn('分割返済B', output)
+        self.assertNotIn('カードローンA', output)
+        self.assertIn('教育ローン', output)
 
     def test_zero_monthly_payment_skipped(self):
         self.profile_active.monthly_payment = 0
         self.profile_active.save()
         output = self._call(month='2026-06')
-        self.assertNotIn('クレジットカードA', output)
+        self.assertNotIn('カードローンA', output)
 
     def test_inactive_source_account_skipped(self):
         self.bank.is_active = False
@@ -80,8 +80,8 @@ class AccrueLoanPrincipalTest(TestCase):
         self.revolving.is_active = False
         self.revolving.save()
         output = self._call(month='2026-06')
-        self.assertNotIn('クレジットカードA', output)
-        self.assertIn('分割返済B', output)
+        self.assertNotIn('カードローンA', output)
+        self.assertIn('教育ローン', output)
 
     def test_apply_creates_transfer(self):
         self._call(month='2026-06', apply=True)
@@ -123,7 +123,7 @@ class AccrueLoanPrincipalTest(TestCase):
             self.assertEqual(log.action, AuditLog.Action.CREATE)
             self.assertEqual(log.target_model, 'Transfer')
             self.assertEqual(log.metadata['month'], '2026-06')
-            self.assertEqual(log.metadata['source_account'], '普通預金A')
+            self.assertEqual(log.metadata['source_account'], 'メイン口座')
 
     def test_duplicate_month_rejected(self):
         self._call(month='2026-06', apply=True)
@@ -142,9 +142,9 @@ class AccrueLoanPrincipalTest(TestCase):
         self.assertIn('月次締め済み', str(ctx.exception))
 
     def test_account_filter(self):
-        output = self._call(month='2026-06', account='クレジットカードA')
-        self.assertIn('クレジットカードA', output)
-        self.assertNotIn('分割返済B', output)
+        output = self._call(month='2026-06', account='カードローンA')
+        self.assertIn('カードローンA', output)
+        self.assertNotIn('教育ローン', output)
 
     def test_zero_rate_loan_still_processed(self):
         # zero_loan は annual_rate_bp=0 だが monthly_payment > 0 なので処理対象
@@ -162,13 +162,13 @@ class LoanProfileFormSourceAccountTest(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.bank = Account.objects.create(
-            name='普通預金A', kind=Account.Kind.ASSET, opening_balance=500000,
+            name='メイン口座', kind=Account.Kind.ASSET, opening_balance=500000,
         )
         cls.cash = Account.objects.create(
             name='現金', kind=Account.Kind.ASSET, opening_balance=10000,
         )
         cls.liability = Account.objects.create(
-            name='クレジットカードA', kind=Account.Kind.LIABILITY, opening_balance=-100000,
+            name='カードローンA', kind=Account.Kind.LIABILITY, opening_balance=-100000,
         )
 
     def test_form_has_source_account_field(self):

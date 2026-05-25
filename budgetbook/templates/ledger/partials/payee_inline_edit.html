@@ -1,17 +1,14 @@
-{# 行直下に挿入されるカテゴリインライン編集フォーム #}
-<tr id="cat-inline-edit-{{ category.pk }}" class="inline-edit-row">
-  <td colspan="6">
+{# 行直下に挿入される支払先インライン編集フォーム #}
+<tr id="payee-inline-edit-{{ payee.pk }}" class="inline-edit-row">
+  <td colspan="5">
     <form
       class="form-grid inline-edit-form"
-      hx-post="{% url 'ledger:category_update' category.pk %}?inline=1"
-      hx-target="#cat-inline-edit-{{ category.pk }}"
+      hx-post="{% url 'ledger:payee_update' payee.pk %}?inline=1"
+      hx-target="#payee-inline-edit-{{ payee.pk }}"
       hx-swap="outerHTML"
     >
       {% csrf_token %}
-      <div class="inline-edit-form__title">「{{ category.name }}」を編集</div>
-      <div class="helper">
-        変更は過去取引の表示やレポートにも反映され、履歴に記録されます。使用済みカテゴリの区分変更はできません。
-      </div>
+      <div class="inline-edit-form__title">「{{ payee.name }}」を編集</div>
       {% for field in form %}
         <div class="field">
           <label for="{{ field.id_for_label }}">{{ field.label }}</label>
@@ -29,8 +26,8 @@
         <button
           class="btn btn--soft btn--sm"
           type="button"
-          hx-get="{% url 'ledger:category_update' category.pk %}?inline=1&close=1"
-          hx-target="#cat-inline-edit-{{ category.pk }}"
+          hx-get="{% url 'ledger:payee_update' payee.pk %}?inline=1&close=1"
+          hx-target="#payee-inline-edit-{{ payee.pk }}"
           hx-swap="outerHTML"
         >キャンセル</button>
       </div>

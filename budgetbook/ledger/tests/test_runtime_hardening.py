@@ -1,9 +1,11 @@
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from django.conf import settings
 from django.db import connection
 from django.test import SimpleTestCase, TestCase
 
+import config.settings as project_settings
 from ledger.db import validate_sqlite_pragma_value
 
 
@@ -27,6 +29,27 @@ class RuntimeSecuritySettingsTest(SimpleTestCase):
         )
         with self.assertRaises(ValueError):
             validate_sqlite_pragma_value('WAL; DROP TABLE ledger_transaction', {'WAL'}, 'SQLITE_JOURNAL_MODE')
+
+    def test_static_version_reads_git_head_ref(self):
+        sha = '1234567890abcdef1234567890abcdef12345678'
+        with TemporaryDirectory() as temp_dir:
+            repo_root = Path(temp_dir)
+            ref_dir = repo_root / '.git' / 'refs' / 'heads'
+            ref_dir.mkdir(parents=True)
+            (repo_root / '.git' / 'HEAD').write_text('ref: refs/heads/main\n', encoding='utf-8')
+            (ref_dir / 'main').write_text(f'{sha}\n', encoding='utf-8')
+
+            self.assertEqual(project_settings._git_short_sha(repo_root), sha[:7])
+
+    def test_static_version_reads_detached_git_head(self):
+        sha = 'abcdef1234567890abcdef1234567890abcdef12'
+        with TemporaryDirectory() as temp_dir:
+            repo_root = Path(temp_dir)
+            git_dir = repo_root / '.git'
+            git_dir.mkdir()
+            (git_dir / 'HEAD').write_text(f'{sha}\n', encoding='utf-8')
+
+            self.assertEqual(project_settings._git_short_sha(repo_root), sha[:7])
 
 
 class SQLitePragmaTest(TestCase):

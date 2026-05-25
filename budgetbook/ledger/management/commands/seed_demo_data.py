@@ -21,15 +21,19 @@ from datetime import date
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
-from django.db import transaction as db_transaction
+from django.db import connection, transaction as db_transaction
 
 from ledger.models import (
     Account,
     AnnualIncomeSnapshot,
     Category,
+    CategoryChangeLog,
     InsurancePremium,
     LoanProfile,
     MedicalExpense,
+    Payee,
+    PayeeAlias,
+    PaymentMethod,
     SectionBudget,
     Transaction,
     Transfer,
@@ -85,6 +89,45 @@ EXPENSE_CATEGORIES = [
     ('金利・手数料', Category.Section.OTHER, Category.TaxTag.NONE),
     ('その他', Category.Section.OTHER, Category.TaxTag.NONE),
 ]
+
+PAYEE_SPECS = {
+    '勤務先': ['給与振込', '賞与'],
+    'ポイントサービス': ['ポイント還元・キャッシュバック'],
+    '住宅ローン会社': ['住宅ローン返済'],
+    '電力・ガス・水道': ['電気・ガス・水道'],
+    '通信会社': ['携帯・インターネット'],
+    '動画配信サービス': [],
+    '保険会社': ['生命保険・地震保険 月払い分'],
+    'スーパー': ['食材まとめ買い'],
+    '生協': [],
+    '農協': [],
+    'ファミレス': ['ランチ'],
+    'カフェ': [],
+    '居酒屋': [],
+    'ドラッグストア': [],
+    'ホームセンター': [],
+    '雑貨店': [],
+    '交通系電子マネー': ['定期券チャージ'],
+    '書店': ['書籍'],
+    '動画ストア': ['動画購入'],
+    'ゲームストア': ['ゲーム'],
+    '映画館': ['映画'],
+    '〇〇クリニック': [],
+    '△△内科': [],
+    '□□小児科': [],
+    '☆☆歯科': [],
+    '〇〇薬局': [],
+    '◇◇薬局': [],
+    '衣料品店': [],
+    '美容院': [],
+    'コスメショップ': ['コスメ'],
+    'ギフトショップ': ['ギフト', 'お祝い'],
+    '飲食店': ['飲み会'],
+    '教材販売': ['教材・学用品'],
+    '習い事': ['習い事月謝'],
+    '市区町村': ['固定資産税', '自動車税'],
+    '金融機関': ['ATM 手数料'],
+}
 
 
 # 月別の水道光熱費パターン（夏冬高、春秋低）
@@ -142,6 +185,8 @@ class Command(BaseCommand):
         accounts = self._create_accounts()
         categories = self._create_categories()
         self._create_loan_profiles(accounts)
+        payees = self._create_payees()
+        payment_methods = self._create_payment_methods(accounts)
 
         today = date.today()
         current_year = today.year
@@ -156,6 +201,7 @@ class Command(BaseCommand):
             self._create_monthly_transactions(accounts, categories, current_year, m)
 
         self._create_transfers(accounts, years_full, current_year, today.month)
+        self._assign_transaction_masters(payees, payment_methods)
         self._create_section_budgets()
         self._create_medical_expenses(years_full)
         self._create_insurance_premiums(years_full + [current_year])
@@ -164,12 +210,16 @@ class Command(BaseCommand):
         # 集計表示用
         total_tx = Transaction.objects.count()
         total_tf = Transfer.objects.count()
+        total_payees = Payee.objects.count()
+        total_payment_methods = PaymentMethod.objects.count()
         total_me = MedicalExpense.objects.count()
         total_ip = InsurancePremium.objects.count()
         summary = (
             f'Demo data seeded:\n'
             f'  Transactions: {total_tx}\n'
             f'  Transfers: {total_tf}\n'
+            f'  Payees: {total_payees}\n'
+            f'  PaymentMethods: {total_payment_methods}\n'
             f'  MedicalExpense: {total_me}\n'
             f'  InsurancePremium: {total_ip}\n'
             f'  Years covered: {current_year-2}〜{current_year}'
@@ -184,6 +234,7 @@ class Command(BaseCommand):
 
     def _reset(self):
         self.stdout.write('Resetting demo data...')
+        CategoryChangeLog.objects.all().delete()
         MedicalExpense.objects.all().delete()
         InsurancePremium.objects.all().delete()
         AnnualIncomeSnapshot.objects.all().delete()
@@ -191,8 +242,37 @@ class Command(BaseCommand):
         Transaction.objects.all().delete()
         Transfer.objects.all().delete()
         LoanProfile.objects.all().delete()
+        PayeeAlias.objects.all().delete()
+        Payee.objects.all().delete()
+        PaymentMethod.objects.all().delete()
         Category.objects.all().delete()
         Account.objects.all().delete()
+        self._reset_sqlite_sequences()
+
+    def _reset_sqlite_sequences(self):
+        if connection.vendor != 'sqlite':
+            return
+
+        tables = [
+            Account._meta.db_table,
+            Category._meta.db_table,
+            Transaction._meta.db_table,
+            Transfer._meta.db_table,
+            MedicalExpense._meta.db_table,
+            InsurancePremium._meta.db_table,
+            AnnualIncomeSnapshot._meta.db_table,
+            SectionBudget._meta.db_table,
+            LoanProfile._meta.db_table,
+            Payee._meta.db_table,
+            PayeeAlias._meta.db_table,
+            PaymentMethod._meta.db_table,
+            CategoryChangeLog._meta.db_table,
+        ]
+        with connection.cursor() as cursor:
+            cursor.executemany(
+                'DELETE FROM sqlite_sequence WHERE name = %s',
+                [(table,) for table in tables],
+            )
 
     # ----- users --------------------------------------------------------
 
@@ -303,6 +383,105 @@ class Command(BaseCommand):
                     'method': method,
                 },
             )
+
+    def _create_payees(self) -> dict[str, Payee]:
+        payees: dict[str, Payee] = {}
+        for name, aliases in PAYEE_SPECS.items():
+            payee, _ = Payee.objects.update_or_create(
+                name=name,
+                defaults={
+                    'is_active': True,
+                    'notes': 'デモデータ用の支払先マスタ',
+                },
+            )
+            payees[name] = payee
+            existing_aliases = set(payee.aliases.values_list('alias', flat=True))
+            for alias in aliases:
+                if alias not in existing_aliases:
+                    PayeeAlias.objects.create(payee=payee, alias=alias)
+        return payees
+
+    def _create_payment_methods(self, accounts: dict[str, Account]) -> dict[str, PaymentMethod]:
+        specs = {
+            '現金': {
+                'kind': PaymentMethod.Kind.CASH,
+                'account': accounts['現金'],
+                'settlement_account': None,
+                'closing_day': 0,
+                'settlement_day': 0,
+            },
+            '普通預金': {
+                'kind': PaymentMethod.Kind.BANK,
+                'account': accounts['普通預金'],
+                'settlement_account': None,
+                'closing_day': 0,
+                'settlement_day': 0,
+            },
+            '電子マネー': {
+                'kind': PaymentMethod.Kind.ELECTRONIC_MONEY,
+                'account': accounts['電子マネー'],
+                'settlement_account': None,
+                'closing_day': 0,
+                'settlement_day': 0,
+            },
+            'クレジットカード': {
+                'kind': PaymentMethod.Kind.CREDIT_CARD,
+                'account': accounts['クレジットカード'],
+                'settlement_account': accounts['普通預金'],
+                'closing_day': 0,
+                'settlement_day': 27,
+            },
+        }
+        payment_methods: dict[str, PaymentMethod] = {}
+        for name, spec in specs.items():
+            payment_method, _ = PaymentMethod.objects.update_or_create(
+                name=name,
+                defaults={
+                    **spec,
+                    'is_active': True,
+                    'notes': 'デモデータ用の支払手段マスタ',
+                },
+            )
+            payment_methods[name] = payment_method
+        return payment_methods
+
+    def _assign_transaction_masters(
+        self,
+        payees: dict[str, Payee],
+        payment_methods: dict[str, PaymentMethod],
+    ):
+        description_to_payee: dict[str, Payee] = {}
+        for name, aliases in PAYEE_SPECS.items():
+            description_to_payee[name] = payees[name]
+            for alias in aliases:
+                description_to_payee[alias] = payees[name]
+        for description in [
+            '◇◇市 ふるさと納税 (返礼品: 米)',
+            '△△町 ふるさと納税 (返礼品: 果物)',
+            '〇〇村 ふるさと納税 (返礼品: 肉)',
+            '□□市 ふるさと納税 (返礼品: 魚介)',
+        ]:
+            description_to_payee[description] = payees['市区町村']
+
+        account_to_payment_method = {
+            '現金': payment_methods['現金'],
+            '普通預金': payment_methods['普通預金'],
+            '電子マネー': payment_methods['電子マネー'],
+            'クレジットカード': payment_methods['クレジットカード'],
+        }
+
+        for tx in Transaction.objects.select_related('account'):
+            update_fields = []
+            payee = description_to_payee.get(tx.description)
+            if payee and tx.payee_id != payee.id:
+                tx.payee = payee
+                update_fields.append('payee')
+            payment_method = account_to_payment_method.get(tx.account.name)
+            if payment_method and tx.payment_method_id != payment_method.id:
+                tx.payment_method = payment_method
+                update_fields.append('payment_method')
+            if update_fields:
+                tx.save(update_fields=update_fields)
 
     # ----- monthly transactions ----------------------------------------
 

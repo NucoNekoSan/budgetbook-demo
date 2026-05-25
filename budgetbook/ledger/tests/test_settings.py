@@ -22,7 +22,7 @@ class SettingsPageTest(TestCase):
         resp = self.client.get(reverse('ledger:settings'))
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, '設定')
-        # v1.19.0: グローバルナビ経由で家計簿に戻る (戻るボタン廃止)
+        # v1.18.6: グローバルナビ経由で家計簿に戻る (戻るボタン廃止)
         self.assertContains(resp, '家計簿</a>')
         # サブリンクナビの存在確認 (サイドバー廃止 → ヘッダー pill 行に統一)
         self.assertContains(resp, 'settings-sublinks')
@@ -309,18 +309,41 @@ class CategoryCrudTest(TestCase):
         self.assertEqual(resp.status_code, 422)
         self.assertContains(resp, '既に使われています', status_code=422)
 
-    def test_edit_category_kind_is_immutable(self):
+    def test_used_category_kind_is_immutable(self):
+        account = Account.objects.create(name='カテゴリ区分変更口座')
         cat = Category.objects.create(name='給与', kind=Category.Kind.INCOME)
+        Transaction.objects.create(
+            date='2026-04-01',
+            account=account,
+            category=cat,
+            amount=1000,
+            description='使用済み',
+        )
         self.client.post(reverse('ledger:category_update', args=[cat.pk]), {
             'name': '給与改名',
             'kind': 'expense',
             'section': 'other',
             'tax_tag': 'none',
             'notes': '',
+            'change_reason': '区分変更テスト',
         })
         cat.refresh_from_db()
-        self.assertEqual(cat.name, '給与改名')
+        self.assertEqual(cat.name, '給与')
         self.assertEqual(cat.kind, Category.Kind.INCOME)
+
+    def test_unused_category_kind_can_change(self):
+        cat = Category.objects.create(name='未使用給与', kind=Category.Kind.INCOME)
+        self.client.post(reverse('ledger:category_update', args=[cat.pk]), {
+            'name': '未使用支出',
+            'kind': 'expense',
+            'section': 'other',
+            'tax_tag': 'none',
+            'notes': '',
+            'change_reason': '未使用カテゴリ整理',
+        })
+        cat.refresh_from_db()
+        self.assertEqual(cat.name, '未使用支出')
+        self.assertEqual(cat.kind, Category.Kind.EXPENSE)
 
     def test_toggle_category(self):
         cat = Category.objects.create(name='趣味', kind=Category.Kind.EXPENSE)
@@ -351,7 +374,7 @@ class CategoryCrudTest(TestCase):
         self.assertContains(resp, '使用中カテゴリ')
         self.assertContains(resp, '使用中')
         # 1 行表示に圧縮されたあとの形式
-        self.assertContains(resp, '取引 1 / 分析G 0')
+        self.assertContains(resp, '取引 1 / 分析G 0 / 履歴 0')
         # 使用中カテゴリには「カテゴリ削除」用の aria-label を持つボタンが出ない
         self.assertNotContains(resp, 'aria-label="使用中カテゴリ を削除"')
 

@@ -58,6 +58,60 @@
     white-space: nowrap;
     text-align: right;
   }
+  /* 支払先表: 別名 chip と使用状況を重ならない幅で折り返す */
+  .settings-layout #payee-list table {
+    min-width: 980px;
+  }
+  .settings-layout #payee-list table th:nth-child(2),
+  .settings-layout #payee-list table td:nth-child(2) {
+    width: 280px;
+    white-space: normal;
+    text-align: left;
+  }
+  .settings-layout #payee-list table th:nth-child(3),
+  .settings-layout #payee-list table td:nth-child(3) {
+    width: 140px;
+    white-space: normal;
+    text-align: left;
+  }
+  .settings-layout #payee-list table th:nth-child(4),
+  .settings-layout #payee-list table td:nth-child(4) {
+    width: 80px;
+    text-align: center;
+  }
+  /* 支払手段表: 7列構成なので横スクロール前提の最小幅を確保 */
+  .settings-layout #payment-method-list table {
+    min-width: 1160px;
+  }
+  .settings-layout #payment-method-list table th:nth-child(2),
+  .settings-layout #payment-method-list table td:nth-child(2) {
+    width: 150px;
+    white-space: normal;
+    text-align: left;
+  }
+  .settings-layout #payment-method-list table th:nth-child(3),
+  .settings-layout #payment-method-list table td:nth-child(3) {
+    width: 190px;
+    white-space: normal;
+    text-align: left;
+  }
+  .settings-layout #payment-method-list table th:nth-child(4),
+  .settings-layout #payment-method-list table td:nth-child(4) {
+    width: 150px;
+    white-space: normal;
+    text-align: left;
+  }
+  .settings-layout #payment-method-list table th:nth-child(5),
+  .settings-layout #payment-method-list table td:nth-child(5) {
+    width: 130px;
+    white-space: normal;
+    text-align: left;
+  }
+  .settings-layout #payment-method-list table th:nth-child(6),
+  .settings-layout #payment-method-list table td:nth-child(6) {
+    width: 80px;
+    text-align: center;
+  }
   /* カテゴリ表は 6 列 */
   .settings-layout #category-list table th:nth-child(3),
   .settings-layout #category-list table td:nth-child(3) {
@@ -89,6 +143,35 @@
   gap: 6px;
 }
 .settings-layout .inline-actions .btn { flex-shrink: 0; }
+.settings-token-list,
+.settings-status-pair,
+.settings-date-pair,
+.settings-account-summary {
+  min-width: 0;
+}
+.settings-token-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+}
+.settings-status-pair,
+.settings-date-pair {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 4px 8px;
+}
+.settings-account-summary {
+  display: grid;
+  gap: 2px;
+}
+.settings-token-list .chip,
+.settings-status-pair .chip {
+  max-width: 100%;
+}
 /* disabled ボタン (削除不可) は淡色化 */
 .btn[disabled] {
   background: var(--panel-soft);
@@ -329,4 +412,3 @@ body[data-route="settings"] [data-route-link="settings"]::after {
     width: 120px;
   }
 }
-
