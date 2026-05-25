@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import date
+from unittest import mock
 
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -16,10 +17,13 @@ from ledger.models import (
     Transaction,
 )
 from ledger.services.csv_import import (
+    CsvImportCommitError,
     MAX_BYTES,
     MAX_ROWS,
+    PreviewRow,
     CsvImportError,
     build_preview_rows,
+    commit_rows,
     decode_csv_bytes,
     parse_csv,
 )
@@ -153,6 +157,31 @@ class PreviewTest(TestCase):
         self.assertEqual(pr[0].status, 'ok')
 
 
+class CommitRowsTest(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.account = Account.objects.create(name='確定口座', opening_balance=10000)
+        cls.category = Category.objects.create(name='確定食費', kind=Category.Kind.EXPENSE)
+
+    def test_commit_rows_runs_model_validation_before_bulk_create(self):
+        preview = [
+            PreviewRow(
+                line_no=2,
+                status='ok',
+                date=date(2026, 5, 1),
+                account_id=self.account.pk,
+                category_id=self.category.pk,
+                amount=0,
+                description='不正金額',
+            )
+        ]
+
+        with self.assertRaises(CsvImportCommitError):
+            commit_rows(preview, {2})
+
+        self.assertEqual(Transaction.objects.count(), 0)
+
+
 class ViewTest(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -223,6 +252,25 @@ class ViewTest(TestCase):
             'filename': 'test.csv',
             'selected_lines': ['2'],
         })
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(Transaction.objects.count(), 0)
+
+    @mock.patch(
+        'ledger.views.csv_import.commit_rows',
+        side_effect=CsvImportCommitError('2 行目の取引データが不正です。'),
+    )
+    def test_confirm_handles_commit_validation_error(self, _mock_commit):
+        csv_text = _make_csv([
+            ['2026-05-01', '支出', 'イ口座', 'イ食費', '500', 'コンビニ', ''],
+        ])
+
+        resp = self.client.post(reverse('ledger:transaction_import'), {
+            'confirm': '1',
+            'csv_text': csv_text,
+            'filename': 'test.csv',
+            'selected_lines': ['2'],
+        })
+
         self.assertEqual(resp.status_code, 302)
         self.assertEqual(Transaction.objects.count(), 0)
 

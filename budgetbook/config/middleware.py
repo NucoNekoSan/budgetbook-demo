@@ -5,7 +5,7 @@ import time
 from collections import deque
 
 from django.conf import settings
-from django.http import JsonResponse
+from django.http import HttpResponseForbidden, JsonResponse
 
 CSP_NONCE_PLACEHOLDER = '__CSP_NONCE__'
 
@@ -212,4 +212,37 @@ class RateLimitMiddleware:
                 {'status': 'error', 'detail': 'rate limit exceeded'},
                 status=429,
             )
+        return self.get_response(request)
+
+
+class StaffOnlyLedgerMiddleware:
+    """Optional RBAC guard for personal-finance data.
+
+    When LEDGER_STAFF_ONLY=1, every authenticated non-staff user is denied
+    access to private ledger endpoints. Public operational/PWA endpoints and
+    Django auth/admin URLs remain outside this guard.
+    """
+
+    _static_exempt_prefixes = (
+        '/accounts/',
+        '/healthz',
+        '/manifest.webmanifest',
+        '/sw.js',
+        '/offline',
+        '/static/',
+    )
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if not getattr(settings, 'LEDGER_STAFF_ONLY', False):
+            return self.get_response(request)
+        admin_path = '/' + getattr(settings, 'ADMIN_URL_PATH', 'admin/').lstrip('/')
+        exempt_prefixes = self._static_exempt_prefixes + (admin_path,)
+        if request.path.startswith(exempt_prefixes):
+            return self.get_response(request)
+        user = getattr(request, 'user', None)
+        if user is not None and user.is_authenticated and not user.is_staff:
+            return HttpResponseForbidden('Staff account required.')
         return self.get_response(request)

@@ -76,13 +76,14 @@
       {% if patient_rows %}
         <h2 class="section-title u-mt-24">受診者別小計</h2>
         <table class="table">
+          <caption class="sr-only">{{ year }}年の受診者別医療費小計</caption>
           <thead>
             <tr>
-              <th>受診者</th>
-              <th class="num">件数</th>
-              <th class="num">支払合計</th>
-              <th class="num">補填合計</th>
-              <th class="num">差引</th>
+              <th scope="col">受診者</th>
+              <th scope="col" class="num">件数</th>
+              <th scope="col" class="num">支払合計</th>
+              <th scope="col" class="num">補填合計</th>
+              <th scope="col" class="num">差引</th>
             </tr>
           </thead>
           <tbody>
@@ -100,13 +101,14 @@
 
         <h2 class="section-title u-mt-24">医療機関別小計</h2>
         <table class="table">
+          <caption class="sr-only">{{ year }}年の医療機関別医療費小計</caption>
           <thead>
             <tr>
-              <th>医療機関・薬局</th>
-              <th class="num">件数</th>
-              <th class="num">支払合計</th>
-              <th class="num">補填合計</th>
-              <th class="num">差引</th>
+              <th scope="col">医療機関・薬局</th>
+              <th scope="col" class="num">件数</th>
+              <th scope="col" class="num">支払合計</th>
+              <th scope="col" class="num">補填合計</th>
+              <th scope="col" class="num">差引</th>
             </tr>
           </thead>
           <tbody>
@@ -124,17 +126,18 @@
 
         <h2 class="section-title u-mt-24">明細</h2>
         <table class="table">
+          <caption class="sr-only">{{ year }}年の医療費控除明細一覧</caption>
           <thead>
             <tr>
-              <th>支払日</th>
-              <th>受診者</th>
-              <th>医療機関・薬局</th>
-              <th>区分</th>
-              <th class="num">支払額</th>
-              <th class="num">補填額</th>
-              <th class="num">差引</th>
-              <th>取引</th>
-              <th>操作</th>
+              <th scope="col">支払日</th>
+              <th scope="col">受診者</th>
+              <th scope="col">医療機関・薬局</th>
+              <th scope="col">区分</th>
+              <th scope="col" class="num">支払額</th>
+              <th scope="col" class="num">補填額</th>
+              <th scope="col" class="num">差引</th>
+              <th scope="col">取引</th>
+              <th scope="col">操作</th>
             </tr>
           </thead>
           <tbody>

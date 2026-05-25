@@ -4,7 +4,7 @@ from django.urls import reverse
 
 from ledger.forms import AccountForm
 from ledger.forms import TransactionForm
-from ledger.models import Account, Category, MonthlyClosing, Transaction, Transfer
+from ledger.models import Account, Category, MonthlyClosing, Payee, PaymentMethod, Transaction, Transfer
 
 
 class SettingsPageTest(TestCase):
@@ -31,6 +31,17 @@ class SettingsPageTest(TestCase):
         resp = self.client.get(reverse('ledger:settings'))
         self.assertContains(resp, 'メイン口座')
         self.assertContains(resp, '食費')
+
+    def test_settings_tables_have_accessible_captions_and_headers(self):
+        Payee.objects.create(name='設定表示支払先')
+        PaymentMethod.objects.create(name='設定表示支払手段', kind=PaymentMethod.Kind.CASH)
+
+        resp = self.client.get(reverse('ledger:settings'))
+        self.assertContains(resp, '<caption class="sr-only">登録済み口座一覧</caption>')
+        self.assertContains(resp, '<caption class="sr-only">登録済みカテゴリ一覧</caption>')
+        self.assertContains(resp, '<caption class="sr-only">登録済み支払先一覧</caption>')
+        self.assertContains(resp, '<caption class="sr-only">登録済み支払手段一覧</caption>')
+        self.assertContains(resp, '<th scope="col">操作</th>', count=4)
 
 
 class AccountCrudTest(TestCase):

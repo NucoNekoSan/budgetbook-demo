@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import gzip
+import hashlib
 import io
 import json
 import logging
@@ -93,6 +94,11 @@ class PruneAuditLogsCommandTest(TestCase):
             from pathlib import Path
             archives = list(Path(tmp).glob('audit_log_until_*.jsonl.gz'))
             self.assertEqual(len(archives), 1)
+            sha_files = list(Path(tmp).glob('audit_log_until_*.jsonl.gz.sha256'))
+            self.assertEqual(len(sha_files), 1)
+            expected_hash = sha_files[0].read_text(encoding='utf-8').split()[0]
+            actual_hash = hashlib.sha256(archives[0].read_bytes()).hexdigest()
+            self.assertEqual(expected_hash, actual_hash)
             with gzip.open(archives[0], 'rt', encoding='utf-8') as fh:
                 rows = [json.loads(line) for line in fh]
         self.assertEqual(len(rows), 2)
@@ -129,6 +135,13 @@ class SelfCheckCommandTest(TestCase):
 
 
 class HealthzVerboseTest(TestCase):
+    def test_verbose_is_disabled_by_default(self):
+        resp = self.client.get(reverse('ledger:healthz') + '?verbose=1')
+        self.assertEqual(resp.status_code, 200)
+        body = resp.json()
+        self.assertEqual(body, {'status': 'ok'})
+
+    @override_settings(HEALTHZ_VERBOSE_ENABLED=True)
     def test_verbose_reports_db_write_ok(self):
         resp = self.client.get(reverse('ledger:healthz') + '?verbose=1')
         self.assertEqual(resp.status_code, 200)
@@ -137,6 +150,7 @@ class HealthzVerboseTest(TestCase):
         self.assertEqual(body['db_write'], 'ok')
         self.assertEqual(body['accounting'], 'no_closings')
 
+    @override_settings(HEALTHZ_VERBOSE_ENABLED=True)
     def test_verbose_with_clean_closing_reports_ok(self):
         Account.objects.create(name='ヘルス口座', opening_balance=0)
         Category.objects.create(name='ヘルス費', kind=Category.Kind.EXPENSE)

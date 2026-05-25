@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime
 from typing import Iterable
 
+from django.core.exceptions import ValidationError
 from django.db.models import Q
 
 from ..models import (
@@ -64,6 +65,10 @@ class PreviewRow:
 
 class CsvImportError(Exception):
     """ファイルレベルの拒否（行内エラーではなく全体エラー）。"""
+
+
+class CsvImportCommitError(Exception):
+    """確定直前のモデル検証で拒否された場合のエラー。"""
 
 
 def decode_csv_bytes(raw: bytes) -> str:
@@ -269,7 +274,7 @@ def commit_rows(preview_rows: Iterable[PreviewRow], selected_indices: set[int]) 
             continue
         # CSV インジェクション保護: 表示時には Django autoescape が効くが、
         # ストレージにも先頭プレフィクスは付けない（既存運用と整合）。
-        to_create.append(Transaction(
+        transaction = Transaction(
             date=pr.date,
             account_id=pr.account_id,
             category_id=pr.category_id,
@@ -278,7 +283,14 @@ def commit_rows(preview_rows: Iterable[PreviewRow], selected_indices: set[int]) 
             amount=pr.amount,
             description=pr.description[:120],
             memo=pr.memo,
-        ))
+        )
+        try:
+            transaction.full_clean()
+        except ValidationError as exc:
+            raise CsvImportCommitError(
+                f'{pr.line_no} 行目の取引データが不正です: {exc.messages[0]}'
+            ) from exc
+        to_create.append(transaction)
     if not to_create:
         return []
     created = Transaction.objects.bulk_create(to_create)

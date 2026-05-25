@@ -91,6 +91,7 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'config.middleware.DemoAutoLoginMiddleware',
+    'config.middleware.StaffOnlyLedgerMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'django_htmx.middleware.HtmxMiddleware',
@@ -352,6 +353,10 @@ LOGIN_URL = '/accounts/login/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/accounts/login/'
 
+# 単一家計簿データの追加防御。1 にすると ledger の非公開 endpoint は staff ユーザーのみ許可する。
+# Cloudflare Access で本人/家族を絞った上で、Django 側の誤作成ユーザーによる閲覧・変更を防ぐ。
+LEDGER_STAFF_ONLY = _env_bool('LEDGER_STAFF_ONLY', False)
+
 # ---------------------------------------------------------------------------
 # Admin URL（env で変更可能）
 # ---------------------------------------------------------------------------
@@ -375,6 +380,9 @@ AXES_ENABLED = 'test' not in sys.argv
 RATE_LIMIT_ENABLED = ('test' not in sys.argv) and _env_bool('RATE_LIMIT_ENABLED', True)
 RATE_LIMIT_MAX_EVENTS = int(os.environ.get('RATE_LIMIT_MAX_EVENTS', 600))
 RATE_LIMIT_WINDOW_SECONDS = int(os.environ.get('RATE_LIMIT_WINDOW_SECONDS', 60))
+
+# /healthz?verbose=1 は DB 書込みプローブと会計 drift 確認を行うため明示許可時のみ有効。
+HEALTHZ_VERBOSE_ENABLED = _env_bool('HEALTHZ_VERBOSE_ENABLED', False)
 
 # ---------------------------------------------------------------------------
 # 5xx エラーメール通知 (v1.10.0)

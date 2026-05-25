@@ -305,14 +305,15 @@
       {% if page_obj.object_list %}
         <div class="table-wrap table-wrap--responsive">
           <table class="tx-table">
+            <caption class="sr-only">{{ target_month|date:'Y年n月' }}の取引一覧</caption>
             <thead>
               <tr>
-                <th>日付</th>
-                <th>摘要</th>
-                <th>口座</th>
-                <th>カテゴリ</th>
-                <th>金額</th>
-                <th>操作</th>
+                <th scope="col">日付</th>
+                <th scope="col">摘要</th>
+                <th scope="col">口座</th>
+                <th scope="col">カテゴリ</th>
+                <th scope="col">金額</th>
+                <th scope="col">操作</th>
               </tr>
             </thead>
             <tbody>

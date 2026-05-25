@@ -19,7 +19,8 @@ WORKDIR /app
 
 # 依存だけ先にインストール（キャッシュ効率化）
 COPY budgetbook/requirements.txt /app/requirements.txt
-RUN pip install --no-cache-dir -r /app/requirements.txt
+COPY budgetbook/requirements.lock /app/requirements.lock
+RUN pip install --no-cache-dir -c /app/requirements.lock -r /app/requirements.txt
 
 # アプリ本体（.dockerignore で .env / db.sqlite3 / backup / staticfiles / .git / .claude を除外）
 COPY budgetbook/ /app/

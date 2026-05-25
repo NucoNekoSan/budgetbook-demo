@@ -65,8 +65,9 @@
 
         <div class="table-wrap u-mt-16">
           <table class="data-table">
+            <caption class="sr-only">現状の返済戦略比較</caption>
             <thead>
-              <tr><th>戦略</th><th>完済月数</th><th>支払利息合計</th><th>月次合計支払</th></tr>
+              <tr><th scope="col">戦略</th><th scope="col">完済月数</th><th scope="col">支払利息合計</th><th scope="col">月次合計支払</th></tr>
             </thead>
             <tbody>
               <tr>
@@ -138,8 +139,9 @@
         <div class="meta">高金利の順に優先返済すべき口座。リボ手数料の節約効果が最大化されます。</div>
         <div class="table-wrap u-mt-16">
           <table class="data-table">
+            <caption class="sr-only">雪崩法による負債別優先順位</caption>
             <thead>
-              <tr><th>順位</th><th>口座</th><th>残債</th><th>年利</th><th>月次最低支払</th><th>累計支払利息（雪崩法）</th></tr>
+              <tr><th scope="col">順位</th><th scope="col">口座</th><th scope="col">残債</th><th scope="col">年利</th><th scope="col">月次最低支払</th><th scope="col">累計支払利息（雪崩法）</th></tr>
             </thead>
             <tbody>
               {% for s in base.states %}

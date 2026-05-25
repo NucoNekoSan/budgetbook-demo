@@ -69,13 +69,14 @@
 
       {% if transactions %}
         <table class="table u-mt-16">
+          <caption class="sr-only">{{ year }}年 {{ tax_tag_label }}対象取引一覧</caption>
           <thead>
             <tr>
-              <th>日付</th>
-              <th>支払先</th>
-              <th>カテゴリ</th>
-              <th class="num">金額</th>
-              <th>メモ</th>
+              <th scope="col">日付</th>
+              <th scope="col">支払先</th>
+              <th scope="col">カテゴリ</th>
+              <th scope="col" class="num">金額</th>
+              <th scope="col">メモ</th>
             </tr>
           </thead>
           <tbody>

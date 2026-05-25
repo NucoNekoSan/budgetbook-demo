@@ -172,7 +172,7 @@ class AuditLogAdmin(admin.ModelAdmin):
     search_fields = ('target_model', 'target_id', 'target_repr', 'summary')
     readonly_fields = (
         'created_at', 'user', 'action', 'target_model', 'target_id',
-        'target_repr', 'summary', 'metadata',
+        'target_repr', 'summary', 'metadata', 'prev_hash', 'row_hash',
     )
     date_hierarchy = 'created_at'
 

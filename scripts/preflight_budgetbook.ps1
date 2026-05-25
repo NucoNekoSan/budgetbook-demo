@@ -128,7 +128,7 @@ Invoke-Step "[7/8] HTTP smoke and CSRF login POST" {
 
 Invoke-Step "[8/8] recent error log scan" {
     $logs = docker compose logs --since=10m $ServiceName
-    $matches = $logs | Select-String -Pattern 'ERROR|Traceback| 500 | 502 '
+    $matches = $logs | Select-String -CaseSensitive -Pattern 'ERROR|Traceback| 500 | 502 '
     if ($matches) {
         $matches | ForEach-Object { Write-Error $_.Line }
         throw "recent application errors were found"

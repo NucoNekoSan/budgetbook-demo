@@ -65,6 +65,14 @@ class AnnualViewTest(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, f'{self.year}年 年間サマリー')
 
+    def test_annual_tables_have_accessible_captions_and_headers(self):
+        resp = self.client.get(reverse('ledger:annual'), {'year': self.year})
+        self.assertContains(resp, f'<caption class="sr-only">{self.year}年の月別収入・支出・差額</caption>')
+        self.assertContains(resp, f'<caption class="sr-only">{self.year}年の大分類別年間支出</caption>')
+        self.assertContains(resp, '<th scope="col">月</th>')
+        self.assertContains(resp, '<th scope="col">大分類</th>')
+        self.assertContains(resp, '<th scope="col">割合</th>')
+
     def test_annual_has_12_months(self):
         resp = self.client.get(reverse('ledger:annual'), {'year': self.year})
         self.assertEqual(len(resp.context['months']), 12)

@@ -1,5 +1,9 @@
 from datetime import date
 from io import StringIO
+import os
+from pathlib import Path
+from tempfile import TemporaryDirectory
+import time
 from unittest import mock
 
 from django.core.management import call_command
@@ -7,7 +11,7 @@ from django.core.management.base import CommandError
 from django.db import OperationalError
 from django.test import TestCase
 
-from ledger.models import Account, Category, MonthlyClosing, Transaction
+from ledger.models import Account, AuditLog, Category, MonthlyClosing, Transaction
 
 
 class CheckAccountingIntegrityCommandTest(TestCase):
@@ -114,3 +118,86 @@ class CheckAccountingIntegrityCommandTest(TestCase):
     def test_unmigrated_database_returns_clear_error(self, _mock_enrich):
         with self.assertRaisesMessage(CommandError, 'Accounting tables are not ready. Run migrations first.'):
             call_command('check_accounting_integrity')
+
+
+class SelfCheckCommandTest(TestCase):
+    def test_backup_freshness_uses_file_mtime_not_name_order(self):
+        out = StringIO()
+        with TemporaryDirectory() as tmp_dir:
+            backup_dir = Path(tmp_dir)
+            old_by_mtime_but_late_by_name = backup_dir / 'db-windows-smoke-2026-05-03-084802.sqlite3'
+            new_by_mtime = backup_dir / 'db-2026-05-25-174426.sqlite3'
+            old_by_mtime_but_late_by_name.write_bytes(b'old')
+            new_by_mtime.write_bytes(b'new')
+            os.utime(old_by_mtime_but_late_by_name, (0, 0))
+            now = time.time()
+            os.utime(new_by_mtime, (now, now))
+
+            call_command(
+                'self_check',
+                backup_dir=str(backup_dir),
+                backup_max_age_hours=999999,
+                verbose=True,
+                stdout=out,
+            )
+
+        body = out.getvalue()
+        self.assertNotIn('newest backup is', body)
+        self.assertNotIn('db-windows-smoke-2026-05-03-084802.sqlite3', body)
+
+    def test_audit_log_hash_chain_failure_fails_self_check(self):
+        log = AuditLog.objects.create(
+            action=AuditLog.Action.CREATE,
+            target_model='Transaction',
+            target_id='1',
+            target_repr='tamper target',
+            summary='before',
+            metadata={'amount': 1000},
+        )
+        AuditLog.objects.filter(pk=log.pk).update(summary='after')
+
+        out = StringIO()
+        with TemporaryDirectory() as tmp_dir:
+            backup_dir = Path(tmp_dir)
+            backup = backup_dir / 'db-2026-05-25-174426.sqlite3'
+            backup.write_bytes(b'backup')
+            now = time.time()
+            os.utime(backup, (now, now))
+
+            with self.assertRaises(SystemExit) as raised:
+                call_command(
+                    'self_check',
+                    backup_dir=str(backup_dir),
+                    backup_max_age_hours=999999,
+                    stdout=out,
+                )
+
+        self.assertEqual(raised.exception.code, 2)
+        self.assertIn('AuditLog hash chain failed', out.getvalue())
+
+    @mock.patch('ledger.management.commands.self_check.call_command')
+    def test_unapplied_migrations_fail_self_check(self, mocked_call_command):
+        def fake_call_command(command_name, *args, **kwargs):
+            if command_name == 'migrate':
+                raise SystemExit(1)
+
+        mocked_call_command.side_effect = fake_call_command
+
+        out = StringIO()
+        with TemporaryDirectory() as tmp_dir:
+            backup_dir = Path(tmp_dir)
+            backup = backup_dir / 'db-2026-05-25-174426.sqlite3'
+            backup.write_bytes(b'backup')
+            now = time.time()
+            os.utime(backup, (now, now))
+
+            with self.assertRaises(SystemExit) as raised:
+                call_command(
+                    'self_check',
+                    backup_dir=str(backup_dir),
+                    backup_max_age_hours=999999,
+                    stdout=out,
+                )
+
+        self.assertEqual(raised.exception.code, 2)
+        self.assertIn('migrate --check reported unapplied migrations', out.getvalue())

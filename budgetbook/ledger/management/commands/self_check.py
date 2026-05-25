@@ -3,11 +3,12 @@
 `python manage.py self_check` を実行すると以下を 1 度に検証する:
 
 - Django system checks
-- migrations 未生成差分の有無
+- migrations 未生成差分 / 未適用 migration の有無
 - SQLite PRAGMA (journal_mode=WAL, foreign_keys=on, integrity_check)
 - accounting integrity (月次締めスナップショットと現在帳簿の差分)
 - バックアップディレクトリの最新ファイル鮮度（既定 36 時間以内）
 - AuditLog 最古行の経過日数（保管期間オーバー警告）
+- AuditLog ハッシュチェーンの改ざん検知
 
 長期保守で「今アプリは健全か」を 1 コマンドで把握するための運用補助。
 障害発生時はまず `python manage.py self_check --verbose` を実行することを
@@ -25,6 +26,7 @@ from django.db import connection
 from django.utils import timezone
 
 from ledger.models import Account, AuditLog, MonthlyClosing
+from ledger.services.audit_integrity import AuditLogChainError, verify_audit_log_chain
 from ledger.services.closing import enrich_monthly_closings_with_drift
 
 
@@ -62,14 +64,24 @@ class Command(BaseCommand):
         section('Migrations')
         try:
             call_command('makemigrations', '--check', '--dry-run', verbosity=0)
-            self._ok('migrations are up to date')
+            self._ok('model changes have migrations')
         except SystemExit as exc:
             if int(getattr(exc, 'code', 1)) != 0:
                 errors.append('makemigrations --check reported pending model changes')
             else:
-                self._ok('migrations are up to date')
+                self._ok('model changes have migrations')
         except Exception as exc:
             errors.append(f'migrations check failed: {exc}')
+        try:
+            call_command('migrate', '--check', verbosity=0)
+            self._ok('database migrations are applied')
+        except SystemExit as exc:
+            if int(getattr(exc, 'code', 1)) != 0:
+                errors.append('migrate --check reported unapplied migrations')
+            else:
+                self._ok('database migrations are applied')
+        except Exception as exc:
+            errors.append(f'applied migrations check failed: {exc}')
 
         # 3. SQLite PRAGMA
         section('SQLite PRAGMAs')
@@ -117,7 +129,11 @@ class Command(BaseCommand):
         if not backup_dir.exists():
             warnings.append(f'backup directory not found: {backup_dir}')
         else:
-            backups = sorted(backup_dir.glob('db-*.sqlite3'), reverse=True)
+            backups = sorted(
+                backup_dir.glob('db-*.sqlite3'),
+                key=lambda p: p.stat().st_mtime,
+                reverse=True,
+            )
             if not backups:
                 warnings.append(f'no backups in {backup_dir}')
             else:
@@ -157,6 +173,14 @@ class Command(BaseCommand):
                 self._ok(f'oldest AuditLog row {age_days:.0f}d old (threshold {options["audit_max_age_days"]}d)')
         else:
             self._ok('no AuditLog rows yet')
+
+        # 7. audit log hash chain
+        section('AuditLog hash chain')
+        try:
+            checked = verify_audit_log_chain()
+            self._ok(f'AuditLog hash chain ok ({checked} row(s))')
+        except AuditLogChainError as exc:
+            errors.append(f'AuditLog hash chain failed: {exc}')
 
         # サマリー
         self.stdout.write('')

@@ -46,12 +46,13 @@
       <h2 class="section-title u-mt-24">生命保険料控除（合算上限 ¥120,000）</h2>
       <div class="meta u-mb-8">列「新契約」「旧契約」は支払額。</div>
       <table class="table table--compact">
+        <caption class="sr-only">{{ year }}年の生命保険料控除区分別サマリー</caption>
         <thead>
           <tr>
-            <th>区分</th>
-            <th class="num">新契約</th>
-            <th class="num">旧契約</th>
-            <th class="num">控除額</th>
+            <th scope="col">区分</th>
+            <th scope="col" class="num">新契約</th>
+            <th scope="col" class="num">旧契約</th>
+            <th scope="col" class="num">控除額</th>
           </tr>
         </thead>
         <tbody>
@@ -106,16 +107,17 @@
       {% if items %}
         <h2 class="section-title u-mt-24">明細</h2>
         <table class="table">
+          <caption class="sr-only">{{ year }}年の保険料控除明細一覧</caption>
           <thead>
             <tr>
-              <th>区分</th>
-              <th>契約区分</th>
-              <th>保険会社</th>
-              <th>証券番号</th>
-              <th class="num">年間支払額</th>
-              <th class="num">行控除額</th>
-              <th>年調済</th>
-              <th>操作</th>
+              <th scope="col">区分</th>
+              <th scope="col">契約区分</th>
+              <th scope="col">保険会社</th>
+              <th scope="col">証券番号</th>
+              <th scope="col" class="num">年間支払額</th>
+              <th scope="col" class="num">行控除額</th>
+              <th scope="col">年調済</th>
+              <th scope="col">操作</th>
             </tr>
           </thead>
           <tbody>

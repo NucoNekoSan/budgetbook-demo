@@ -162,6 +162,7 @@ v1.5.0 で導入。詳細は `docs/DEPLOYMENT.md`。
 - `cloudflared` は compose に含めず、Ubuntu host の systemd で運用する（token を compose と切り離す）。
 - Cloudflare Tunnel Public Hostname `home.example.com` → `http://127.0.0.1:8010`。
 - Cloudflare Access self-hosted policy で許可済みメール（世帯メンバーのみ）を通す。Django ログインは残し二重認証。
+- `LEDGER_STAFF_ONLY=1` で Django 側の家計簿非公開 endpoint を `is_staff=True` ユーザーに限定できる。誤作成ユーザーがログインできても ledger データへ到達させないための追加防御。
 - Cloudflare Tunnel 配下では `TRUST_PROXY_SSL=1`、`SECURE_COOKIES=1`、Django の `ENABLE_HTTPS` は OFF（リダイレクトループ防止）。
 
 ## 9. Backup / Restore 方針

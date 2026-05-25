@@ -119,8 +119,9 @@
         <div class="meta">{{ year_start|date:'Y-m-d' }} 〜 {{ m_end|date:'Y-m-d' }}。確定申告の準備資料に。</div>
         <div class="table-wrap u-mt-16">
           <table>
+            <caption class="sr-only">{{ year_start|date:'Y年' }}の税控除タグ別累計</caption>
             <thead>
-              <tr><th>タグ</th><th>金額</th></tr>
+              <tr><th scope="col">タグ</th><th scope="col">金額</th></tr>
             </thead>
             <tbody>
               {% for r in tax_summary %}

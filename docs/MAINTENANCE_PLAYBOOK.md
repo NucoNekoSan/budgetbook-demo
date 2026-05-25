@@ -9,8 +9,8 @@
 docker compose exec -T budgetbook python manage.py self_check --verbose
 ```
 
-`self_check` は Django システムチェック / migrations 差分 / SQLite PRAGMA / 月次締め drift /
-バックアップ鮮度 / AuditLog 保管期間を一括検証する。
+`self_check` は Django システムチェック / migrations 差分・未適用 migration / SQLite PRAGMA / 月次締め drift /
+バックアップ鮮度 / AuditLog 保管期間 / AuditLog ハッシュチェーンを一括検証する。
 - `self_check: all green` → 通常運用に復帰してよい。
 - `self_check: ok with warnings` → 警告内容を読み、本ドキュメントの「警告別対応」を参照。
 - `self_check: FAILED` → 異常。`docs/DR_RUNBOOK.md`（後述）を参照。
@@ -31,6 +31,7 @@ docker compose exec -T budgetbook python manage.py self_check --verbose
 | 日 04:00 | `scripts/verify_backups.sh`（cron 推奨） | エラー出力なしか確認 |
 | 任意 | dependabot からの PR 一覧確認 | `dependency-audit` ジョブが green な PR は基本マージ可。後述「依存更新の判断」 |
 | 月初め | `python manage.py prune_audit_logs --dry-run --keep-days=365` | 件数が想定外に多くないか |
+| 月初め | `python manage.py verify_audit_log_chain` | AuditLog ハッシュチェーンが途切れていないか |
 
 ## 3. 月次（手動 5 分想定）
 
@@ -56,6 +57,8 @@ docker compose exec -T budgetbook python manage.py self_check --verbose
 - `ADMIN_URL_PATH` 変更の検討
 - HSTS preload を検討（運用安定確認後）→ `.env.example` の段階的ロールアウト参照
 - `prune_audit_logs --keep-days=365 --archive-dir=...` で AuditLog をアーカイブ
+- アーカイブ前後に `python manage.py verify_audit_log_chain` で AuditLog の `prev_hash` / `row_hash` を検証
+- 生成された `audit_log_until_*.jsonl.gz.sha256` を保管し、アーカイブ移動後も checksum を保持する
 - 古いバックアップ（GFS で残った monthly 12 ヶ月分以外）を別媒体にオフサイト保管
 
 ## 6. 警告別対応
@@ -67,6 +70,7 @@ docker compose exec -T budgetbook python manage.py self_check --verbose
 | `oldest AuditLog row is XXX days old` | `prune_audit_logs --archive-dir=...` を実行 |
 | `N monthly closing(s) drifted` | 帳簿が締め後に変更されている。`/accounting` で内容確認、必要なら締めを取り直し |
 | `pending model changes` | `models.py` を編集して migration を作っていない。`makemigrations` を実行 |
+| `unapplied migrations` | `python manage.py migrate --check` で確認し、バックアップ取得後に `python manage.py migrate` を実行 |
 
 ## 7. 復旧シナリオへのリンク
 
@@ -111,9 +115,9 @@ PC 不在時にスマホだけで対処する想定。Cloudflare Tunnel が生�
 | AuditLog 確認 | 可能 | `/admin/ledger/auditlog/` （read-only） |
 | バックアップ取得 | 不可 | サーバー側 cron / タスクスケジューラに依存。手動実行は SSH 必要 |
 | DB 復元 | 不可 | C 章どおり host で `restore_budgetbook.*` 実行 |
-| `self_check` | 不可 | SSH / RDP 必要。代替: `/healthz?verbose=1` を URL でアクセス |
+| `self_check` | 不可 | SSH / RDP 必要。代替は `HEALTHZ_VERBOSE_ENABLED=1` の一時有効化後に `/healthz?verbose=1` |
 
-スマホで `/healthz?verbose=1` を叩き `status: ok` を確認するだけでも、
+詳細診断を一時有効化してからスマホで `/healthz?verbose=1` を叩き `status: ok` を確認するだけでも、
 DB 疎通 / 書込み / 直近月次締めの整合性まで一括確認できる。
 
 ## 10. ホスト不在時の自動復帰

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 
+from django.conf import settings
 from django.db import DatabaseError, connection, transaction
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.views.decorators.cache import never_cache
@@ -38,7 +39,7 @@ def healthz(request: HttpRequest) -> HttpResponse:
 
     payload = {'status': 'ok'}
 
-    if request.GET.get('verbose') == '1':
+    if request.GET.get('verbose') == '1' and settings.HEALTHZ_VERBOSE_ENABLED:
         # 書込み試験: TX 内で挿入し即ロールバック。データには痕跡を残さない。
         try:
             with transaction.atomic():

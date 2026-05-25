@@ -109,12 +109,13 @@
       <h2 class="section-title u-mt-32">🛡️ 生命保険料控除</h2>
       <div class="meta u-mb-8">列「新契約」「旧契約」は支払額。</div>
       <table class="table table--compact">
+        <caption class="sr-only">{{ year }}年の生命保険料控除枠別サマリー</caption>
         <thead>
           <tr>
-            <th>枠</th>
-            <th class="num">新契約</th>
-            <th class="num">旧契約</th>
-            <th class="num">控除額</th>
+            <th scope="col">枠</th>
+            <th scope="col" class="num">新契約</th>
+            <th scope="col" class="num">旧契約</th>
+            <th scope="col" class="num">控除額</th>
           </tr>
         </thead>
         <tbody>
@@ -169,12 +170,13 @@
       <h2 class="section-title u-mt-32">🎁 寄附金（参考）</h2>
       {% if summary.donation.transactions %}
         <table class="table">
+          <caption class="sr-only">{{ year }}年の寄附金タグ対象取引一覧</caption>
           <thead>
             <tr>
-              <th>日付</th>
-              <th>支払先</th>
-              <th>カテゴリ</th>
-              <th class="num">金額</th>
+              <th scope="col">日付</th>
+              <th scope="col">支払先</th>
+              <th scope="col">カテゴリ</th>
+              <th scope="col" class="num">金額</th>
             </tr>
           </thead>
           <tbody>

@@ -19,6 +19,7 @@ from django.views.decorators.http import require_http_methods
 from ..forms import CsvImportForm
 from ..models import AuditLog, Transaction
 from ..services.csv_import import (
+    CsvImportCommitError,
     CsvImportError,
     build_preview_rows,
     commit_rows,
@@ -85,7 +86,11 @@ def _handle_confirm(request: HttpRequest) -> HttpResponse:
     preview = build_preview_rows(rows)
 
     with transaction.atomic():
-        created_ids = commit_rows(preview, selected_indices)
+        try:
+            created_ids = commit_rows(preview, selected_indices)
+        except CsvImportCommitError as e:
+            messages.error(request, f'CSV の確定検証に失敗しました: {e}')
+            return redirect('ledger:transaction_import')
 
     if created_ids:
         record_audit(

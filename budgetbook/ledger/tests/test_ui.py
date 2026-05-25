@@ -68,6 +68,18 @@ class DashboardUITest(TestCase):
         self.assertIn('class="tx-table"', body)
         self.assertIn('table-wrap--responsive', body)
 
+    def test_transaction_table_has_accessible_caption_and_headers(self):
+        Transaction.objects.create(
+            date=date.today(), account=self.account, category=self.income,
+            amount=1000, description='テーブル構造',
+        )
+        resp = self.client.get(reverse('ledger:dashboard'))
+        body = resp.content.decode('utf-8')
+        self.assertIn('<caption class="sr-only">', body)
+        self.assertIn('の取引一覧</caption>', body)
+        for header in ('日付', '摘要', '口座', 'カテゴリ', '金額', '操作'):
+            self.assertIn(f'<th scope="col">{header}</th>', body)
+
     def test_inline_action_buttons_have_aria_label(self):
         Transaction.objects.create(
             date=date.today(), account=self.account, category=self.income,

@@ -1,6 +1,9 @@
 from datetime import date
+from io import StringIO
 
 from django.contrib.auth.models import User
+from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.test import TestCase
 from django.urls import reverse
 
@@ -156,3 +159,47 @@ class AuditLogTest(TestCase):
         self.assertFalse(self.account.is_active)
         log = AuditLog.objects.get(action=AuditLog.Action.DEACTIVATE, target_model='Account')
         self.assertEqual(log.target_id, str(self.account.pk))
+
+    def test_audit_log_hash_chain_links_rows(self):
+        first = AuditLog.objects.create(
+            user=self.user,
+            action=AuditLog.Action.CREATE,
+            target_model='Transaction',
+            target_id='1',
+            target_repr='first',
+            summary='first',
+            metadata={'n': 1},
+        )
+        second = AuditLog.objects.create(
+            user=self.user,
+            action=AuditLog.Action.UPDATE,
+            target_model='Transaction',
+            target_id='1',
+            target_repr='second',
+            summary='second',
+            metadata={'n': 2},
+        )
+        first.refresh_from_db()
+        second.refresh_from_db()
+        self.assertEqual(len(first.row_hash), 64)
+        self.assertEqual(second.prev_hash, first.row_hash)
+        self.assertEqual(second.row_hash, second.compute_row_hash())
+
+    def test_verify_audit_log_chain_detects_tamper(self):
+        log = AuditLog.objects.create(
+            user=self.user,
+            action=AuditLog.Action.CREATE,
+            target_model='Transaction',
+            target_id='1',
+            target_repr='tamper target',
+            summary='before',
+            metadata={'amount': 1000},
+        )
+        out = StringIO()
+        call_command('verify_audit_log_chain', stdout=out)
+        self.assertIn('AuditLog hash chain ok', out.getvalue())
+
+        AuditLog.objects.filter(pk=log.pk).update(summary='after')
+
+        with self.assertRaisesMessage(CommandError, f'AuditLog #{log.pk} row_hash mismatch'):
+            call_command('verify_audit_log_chain')

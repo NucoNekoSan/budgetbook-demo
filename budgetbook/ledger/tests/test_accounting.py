@@ -31,6 +31,15 @@ class MonthlyClosingTest(TestCase):
         self.assertContains(resp, 'status-pill')
         self.assertNotContains(resp, 'style="margin-top:18px"')
 
+    def test_accounting_tables_have_accessible_captions_and_headers(self):
+        resp = self.client.get(reverse('ledger:accounting'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, '<caption class="sr-only">月次締め履歴</caption>')
+        self.assertContains(resp, '<caption class="sr-only">口座残高照合履歴</caption>')
+        self.assertContains(resp, '<th scope="col">対象月</th>')
+        self.assertContains(resp, '<th scope="col">照合日</th>')
+        self.assertContains(resp, '<th scope="col">操作</th>', count=2)
+
     def test_accounting_preflight_warns_unreconciled_accounts(self):
         resp = self.client.get(reverse('ledger:accounting'))
         self.assertEqual(resp.status_code, 200)

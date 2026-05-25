@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import gzip
+import hashlib
 import json
 from datetime import timedelta
 from pathlib import Path
@@ -68,9 +69,18 @@ class Command(BaseCommand):
                         'target_repr': row.target_repr,
                         'summary': row.summary,
                         'metadata': row.metadata,
+                        'prev_hash': row.prev_hash,
+                        'row_hash': row.row_hash,
                     }, ensure_ascii=False))
                     fh.write('\n')
             self.stdout.write(self.style.SUCCESS(f'Archive written: {archive_path}'))
+            digest = hashlib.sha256()
+            with archive_path.open('rb') as archive_file:
+                for chunk in iter(lambda: archive_file.read(1024 * 1024), b''):
+                    digest.update(chunk)
+            sha_path = archive_path.with_name(f'{archive_path.name}.sha256')
+            sha_path.write_text(f'{digest.hexdigest()}  {archive_path.name}\n', encoding='utf-8')
+            self.stdout.write(self.style.SUCCESS(f'Archive sha256 written: {sha_path}'))
 
         deleted_total = 0
         batch_size = options['batch_size']

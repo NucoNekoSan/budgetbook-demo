@@ -1,0 +1,11 @@
+# Runtime dependency constraints for reproducible Docker/local installs.
+# Update deliberately after compatibility tests and vulnerability audit.
+asgiref==3.11.1
+Django==5.2.13
+django-axes==7.1.0
+django-htmx==1.27.0
+gunicorn==23.0.0
+python-dotenv==1.2.2
+sqlparse==0.5.5
+tzdata==2026.1
+whitenoise==6.12.0

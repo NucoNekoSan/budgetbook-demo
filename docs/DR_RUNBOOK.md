@@ -55,6 +55,7 @@ docker compose exec -T budgetbook python manage.py changepassword <ユーザー�
    ls -lt backup/db-*.sqlite3 | head -5
    ./scripts/verify_backups.sh
    ```
+   演習時 / 余裕がある場合は、PowerShell で `scripts/restore_drill_budgetbook.ps1 -BackupFile backup/<target>.sqlite3` も実行する。
 4. verify が ok のものから最新を選び、PowerShell なら `scripts\restore_budgetbook.ps1`、Bash なら `scripts/restore_budgetbook.sh` を実行
 5. `docker compose up -d` で再開
 6. `python manage.py self_check --verbose` で緑確認
@@ -69,7 +70,8 @@ docker compose exec -T budgetbook python manage.py changepassword <ユーザー�
    - 締め後に正当な訂正が入った → 締めを取り直す（admin から削除 → 再作成）
    - 不正な変更が入った → AuditLog (`/admin/ledger/auditlog/`) で誰が何時何を変えたか確認 → 修正
 3. `prune_audit_logs` を最近実行したなら、削除したログの archive ファイルも参照する
-4. データ整合性が確認できたら新しい締めを登録
+4. `python manage.py verify_audit_log_chain` で AuditLog のハッシュチェーンが壊れていないことを確認
+5. データ整合性が確認できたら新しい締めを登録
 
 ## E. バックアップが取れていない
 
@@ -157,6 +159,6 @@ migration 由来の場合は復元シナリオ（C 章）に切り替えるか�
 
 復旧 / 操作後は必ず:
 1. `python manage.py self_check --verbose` が緑
-2. `/healthz?verbose=1` が `status: ok`
+2. `/healthz` が `status: ok`。詳細診断が必要な場合だけ `HEALTHZ_VERBOSE_ENABLED=1` を一時設定して `/healthz?verbose=1` を確認
 3. ダッシュボードを開いて当月収支が表示される
 4. 何が起きたかを `docs/INCIDENTS.md`（任意）に簡潔に記録

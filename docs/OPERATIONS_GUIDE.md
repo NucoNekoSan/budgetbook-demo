@@ -231,6 +231,14 @@ SHA256 と `PRAGMA integrity_check` を再検証する。物理破損 / ビッ�
 0 4 * * 0 cd /opt/budgetbook && scripts/verify_backups.sh >> /var/log/budgetbook/verify.log 2>&1
 ```
 
+### サンドボックス復元演習
+
+Windows / PowerShell では次のスクリプトで、最新バックアップの SHA-256、SQLite integrity、現行コードへの migration 適用、Django check、会計整合性チェックまで一括で実行できる。検証は一時DBで行い、本番 `data/db.sqlite3` と Docker service は変更しない。
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/restore_drill_budgetbook.ps1
+```
+
 ### ヘルスチェック
 
 `GET /healthz` は DB に `SELECT 1` を流すだけの軽量エンドポイント。
@@ -265,13 +273,18 @@ Cloudflare Logs / Loki / journalctl などの集約基盤で検索しやすい�
 
 ### `/healthz` verbose モード
 
-`GET /healthz?verbose=1` で
+既定では `GET /healthz?verbose=1` も通常の `/healthz` と同じ
+`{"status":"ok"}` だけを返す。詳細診断を使う場合は `.env` で
+`HEALTHZ_VERBOSE_ENABLED=1` を設定してアプリを再起動する。
+
+有効化後の `GET /healthz?verbose=1` では
 
 - `db_write`: 書込み試験 (TX 内挿入→ロールバック)
 - `accounting`: 直近 1 件の月次締めスナップショットと現在帳簿の差分
 
-を返す。重いので監視ツールから常時ポーリングしないこと。
-オペレータが手動 / 障害時のみ叩く想定。drift 検出時は `status=degraded` を返す。
+を返す。未認証 endpoint であり通常の死活監視より重いので、常時有効化や監視ツールからの
+定期ポーリングは避ける。オペレータが手動 / 障害時のみ一時的に使う想定。
+drift 検出時は `status=degraded` を返す。調査後は `HEALTHZ_VERBOSE_ENABLED` を外して再起動する。
 
 ### AuditLog 保管期間管理
 
@@ -279,9 +292,12 @@ Cloudflare Logs / Loki / journalctl などの集約基盤で検索しやすい�
 
 ```bash
 python manage.py prune_audit_logs --keep-days=365 --archive-dir=/var/backup/budgetbook/audit
+python manage.py verify_audit_log_chain
 ```
 
 - 期間外行を `audit_log_until_<date>.jsonl.gz` にアーカイブしてから削除する。
+- `AuditLog` は `prev_hash` / `row_hash` のハッシュチェーンを保持する。月次またはアーカイブ前に `verify_audit_log_chain` で改ざん検知を行う。
+- アーカイブには `prev_hash` / `row_hash` も含める。アーカイブ時は `audit_log_until_<date>.jsonl.gz.sha256` も出力し、後日の改ざん・ビット腐敗検知に使う。
 - `--dry-run` で件数のみ確認可能。
 - `--batch-size` で削除単位を制御し、長時間ロックを回避する。
 
@@ -341,6 +357,12 @@ curl -b cookies.txt http://127.0.0.1:8010/metrics
 ### ログイン履歴
 
 設定ページの「🔐 ログイン履歴」から過去 30 日分の成功・失敗ログを確認できる。データは django-axes が記録した `AccessLog` / `AccessAttempt` をそのまま表示する。失敗が連続している場合は IP / User-Agent を見て侵入試行か誤入力かを判断する。
+
+### Staff-only 権限境界
+
+`LEDGER_STAFF_ONLY=1` を設定すると、家計簿本体・設定・レポート・メトリクス等の非公開 endpoint は Django の `is_staff=True` ユーザーだけがアクセスできる。未ログインユーザーは従来通りログイン画面へリダイレクトされ、`/healthz`, `/manifest.webmanifest`, `/sw.js`, `/offline`, `/accounts/*`, admin URL は除外される。
+
+有効化前に Django admin で日常利用ユーザーへ staff 権限を付与すること。誤って締め出された場合は `.env` から `LEDGER_STAFF_ONLY=1` を外して再起動し、ユーザー権限を修正してから再度有効化する。
 
 ### 5xx エラーメール通知
 

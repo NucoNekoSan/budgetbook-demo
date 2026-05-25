@@ -1,3 +1,6 @@
+import hashlib
+import json
+
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.conf import settings
@@ -436,6 +439,13 @@ class Transaction(TimeStampedModel):
         verbose_name = '取引'
         verbose_name_plural = '取引'
         ordering = ['-date', '-id']
+        indexes = [
+            models.Index(fields=['date', 'id'], name='ledger_tx_date_id_idx'),
+            models.Index(fields=['account', 'date'], name='ledger_tx_acct_date_idx'),
+            models.Index(fields=['category', 'date'], name='ledger_tx_cat_date_idx'),
+            models.Index(fields=['payee', 'date'], name='ledger_tx_payee_date_idx'),
+            models.Index(fields=['payment_method', 'date'], name='ledger_tx_pm_date_idx'),
+        ]
 
     def __str__(self) -> str:
         return f'{self.date} {self.description} {self.amount}'
@@ -470,6 +480,11 @@ class Transfer(TimeStampedModel):
         verbose_name = '振替'
         verbose_name_plural = '振替'
         ordering = ['-date', '-id']
+        indexes = [
+            models.Index(fields=['date', 'id'], name='ledger_transfer_date_id_idx'),
+            models.Index(fields=['from_account', 'date'], name='ledger_transfer_from_date_idx'),
+            models.Index(fields=['to_account', 'date'], name='ledger_transfer_to_date_idx'),
+        ]
 
     def __str__(self) -> str:
         return f'{self.date} {self.description} {self.amount}'
@@ -541,6 +556,9 @@ class AccountReconciliation(TimeStampedModel):
         verbose_name = '口座残高照合'
         verbose_name_plural = '口座残高照合'
         ordering = ['-reconciled_on', 'account__name']
+        indexes = [
+            models.Index(fields=['-reconciled_on', 'account'], name='ledger_recon_date_acct_idx'),
+        ]
         constraints = [
             models.UniqueConstraint(
                 fields=['account', 'reconciled_on'],
@@ -579,6 +597,8 @@ class AuditLog(models.Model):
     target_repr = models.CharField('対象表示名', max_length=200)
     summary = models.CharField('概要', max_length=200, blank=True)
     metadata = models.JSONField('補足情報', default=dict, blank=True)
+    prev_hash = models.CharField('前監査ログハッシュ', max_length=64, blank=True, editable=False)
+    row_hash = models.CharField('監査ログハッシュ', max_length=64, blank=True, editable=False, db_index=True)
 
     class Meta:
         verbose_name = '監査ログ'
@@ -592,6 +612,42 @@ class AuditLog(models.Model):
 
     def __str__(self) -> str:
         return f'{self.created_at:%Y-%m-%d %H:%M:%S} {self.get_action_display()} {self.target_model}#{self.target_id}'
+
+    def hash_payload(self) -> dict:
+        return {
+            'created_at': self.created_at.isoformat() if self.created_at else '',
+            'user_id': self.user_id,
+            'action': self.action,
+            'target_model': self.target_model,
+            'target_id': self.target_id,
+            'target_repr': self.target_repr,
+            'summary': self.summary,
+            'metadata': self.metadata,
+            'prev_hash': self.prev_hash,
+        }
+
+    def compute_row_hash(self) -> str:
+        payload = json.dumps(
+            self.hash_payload(),
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(',', ':'),
+            default=str,
+        )
+        return hashlib.sha256(payload.encode('utf-8')).hexdigest()
+
+    def save(self, *args, **kwargs):
+        is_new = self._state.adding
+        if is_new and not self.prev_hash:
+            previous = type(self).objects.exclude(row_hash='').order_by('-id').only('row_hash').first()
+            self.prev_hash = previous.row_hash if previous else ''
+        super().save(*args, **kwargs)
+        if is_new and not self.row_hash:
+            self.row_hash = self.compute_row_hash()
+            type(self).objects.filter(pk=self.pk).update(
+                prev_hash=self.prev_hash,
+                row_hash=self.row_hash,
+            )
 
 
 class SectionBudget(TimeStampedModel):
