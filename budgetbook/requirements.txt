@@ -1,6 +1,6 @@
 Django>=5.2,<5.3
 django-axes>=7.0,<8
 django-htmx>=1.27,<1.28
-gunicorn>=23.0,<24
-python-dotenv>=1.1,<2
-whitenoise>=6.7,<7
+gunicorn>=26.0.0,<27
+python-dotenv>=1.2.2,<2
+whitenoise>=6.12.0,<7
