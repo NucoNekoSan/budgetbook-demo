@@ -38,7 +38,7 @@ def main() -> int:
             continue
         if is_text_file(path):
             for pattern in scan_text_for_patterns(path, patterns):
-                failures.append(f'forbidden content pattern {pattern!r}: {relative}')
+                failures.append(f'forbidden content matched: {relative}')
 
     if failures:
         print('[audit] release artifact is not safe:', file=sys.stderr)

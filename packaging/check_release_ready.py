@@ -122,7 +122,7 @@ def check_source_sensitive_patterns(files: list[str]) -> list[str]:
         if not path.is_file() or not is_text_file(path):
             continue
         for pattern in scan_text_for_patterns(path, patterns):
-            failures.append(f'forbidden source content pattern {pattern!r}: {normalized}')
+            failures.append(f'forbidden source content matched: {normalized}')
     return failures
 
 
