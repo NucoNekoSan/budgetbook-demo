@@ -1,0 +1,63 @@
+name: Release Safety
+
+on:
+  push:
+    branches:
+      - master
+    tags:
+      - "v*"
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-safety-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  guardrails:
+    name: Desktop release guardrails
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Compile release scripts
+        run: |
+          python -m py_compile desktop/launcher.py packaging/audit_release.py packaging/audit_source_sensitive.py packaging/check_release_ready.py packaging/release_manifest.py packaging/sensitive_patterns.py
+
+      - name: Check shell scripts
+        run: |
+          bash -n packaging/prepare-release.sh
+          bash -n scripts/audit_docs_sensitive.sh
+          bash -n packaging/macos/build-macos.sh
+          bash -n packaging/macos/sign-and-notarize.sh
+
+      - name: Check PowerShell scripts
+        shell: pwsh
+        run: |
+          $errors = $null
+          foreach ($script in @('packaging/prepare-release.ps1', 'packaging/windows/build-windows.ps1', 'packaging/windows/build-installer.ps1', 'packaging/windows/sign-windows.ps1')) {
+            [System.Management.Automation.PSParser]::Tokenize((Get-Content -Raw $script), [ref]$errors) | Out-Null
+            if ($errors) {
+              $errors | Format-List | Out-String | Write-Error
+              exit 1
+            }
+          }
+
+      - name: Audit source sensitive data
+        run: python packaging/audit_source_sensitive.py --verbose
+
+      - name: Check release readiness
+        run: python packaging/check_release_ready.py
