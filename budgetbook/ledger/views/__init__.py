@@ -83,6 +83,7 @@ from .loan_strategy import loan_strategy_view  # noqa: F401
 from .preview import transaction_preview  # noqa: F401
 from .sections import sections_bulk_edit  # noqa: F401
 from .health import healthz  # noqa: F401
+from .setup import first_run_setup  # noqa: F401
 from .reports import (  # noqa: F401
     annual,
     expense_breakdown,

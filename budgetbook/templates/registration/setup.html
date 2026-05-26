@@ -1,0 +1,70 @@
+{% load static %}
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>BudgetBook | 初期設定</title>
+    <link rel="stylesheet" href="{% static 'css/_01_base.css' %}?v={{ STATIC_VERSION }}">
+    <link rel="stylesheet" href="{% static 'css/_02_layout_cards.css' %}?v={{ STATIC_VERSION }}">
+    <link rel="stylesheet" href="{% static 'css/_03_components.css' %}?v={{ STATIC_VERSION }}">
+    <link rel="stylesheet" href="{% static 'css/_04_pages_responsive.css' %}?v={{ STATIC_VERSION }}">
+    <link rel="stylesheet" href="{% static 'css/_05_features_v119.css' %}?v={{ STATIC_VERSION }}">
+    <meta name="color-scheme" content="light dark">
+    <script nonce="{{ csp_nonce }}" src="{% static 'js/theme_toggle.js' %}?v={{ STATIC_VERSION }}"></script>
+  </head>
+  <body>
+    <main class="login-wrapper">
+      <section class="login-card panel" aria-labelledby="setup-title">
+        <div class="panel__body">
+          <div class="login-brand">BudgetBook</div>
+          <h1 id="setup-title" class="u-mt-0">初期設定</h1>
+          <p class="muted">この端末内に空の家計簿を作成します。実データやユーザーは同梱されていません。</p>
+
+          {% if form.non_field_errors %}
+            <ul class="errors" aria-live="polite">
+              {% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}
+            </ul>
+          {% endif %}
+
+          <form method="post" action="{% url 'ledger:first_run_setup' %}" class="form-grid">
+            {% csrf_token %}
+            <fieldset class="form-grid">
+              <legend class="sr-only">管理者アカウント</legend>
+
+              <div class="field">
+                <label for="{{ form.username.id_for_label }}">{{ form.username.label }}</label>
+                {{ form.username }}
+                {% if form.username.help_text %}<div class="empty__hint">{{ form.username.help_text }}</div>{% endif %}
+                {% if form.username.errors %}<ul class="errors" aria-live="polite">{% for error in form.username.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
+              </div>
+
+              <div class="field">
+                <label for="{{ form.display_name.id_for_label }}">{{ form.display_name.label }}</label>
+                {{ form.display_name }}
+                {% if form.display_name.help_text %}<div class="empty__hint">{{ form.display_name.help_text }}</div>{% endif %}
+                {% if form.display_name.errors %}<ul class="errors" aria-live="polite">{% for error in form.display_name.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
+              </div>
+
+              <div class="field">
+                <label for="{{ form.password.id_for_label }}">{{ form.password.label }}</label>
+                {{ form.password }}
+                {% if form.password.help_text %}<div class="empty__hint">{{ form.password.help_text }}</div>{% endif %}
+                {% if form.password.errors %}<ul class="errors" aria-live="polite">{% for error in form.password.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
+              </div>
+
+              <div class="field checkbox-row">
+                {{ form.create_default_masters }}
+                <label for="{{ form.create_default_masters.id_for_label }}">{{ form.create_default_masters.label }}</label>
+              </div>
+            </fieldset>
+
+            <div class="form-grid__actions">
+              <button type="submit" class="btn btn--primary u-w-full">空の家計簿を作成する</button>
+            </div>
+          </form>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

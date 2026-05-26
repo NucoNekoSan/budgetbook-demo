@@ -68,6 +68,10 @@ DEMO_MODE = _env_bool('DEMO_MODE')
 DEMO_ALLOW_WRITES = _env_bool('DEMO_ALLOW_WRITES')
 DEMO_AUTO_LOGIN = _env_bool('DEMO_AUTO_LOGIN')
 
+# Desktop / downloadable distribution first-run bootstrap.
+# Off by default for the hosted demo and existing self-host installs.
+FIRST_RUN_SETUP_ENABLED = _env_bool('FIRST_RUN_SETUP_ENABLED')
+
 INSTALLED_APPS = [
     'axes',
     'django.contrib.admin',
@@ -90,6 +94,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'config.middleware.FirstRunSetupMiddleware',
     'config.middleware.DemoAutoLoginMiddleware',
     'config.middleware.StaffOnlyLedgerMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
@@ -273,7 +278,7 @@ def _compute_static_version() -> str:
 
 STATIC_VERSION = _compute_static_version()
 STATICFILES_DIRS = [BASE_DIR / 'static']
-STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATIC_ROOT = Path(os.environ.get('DJANGO_STATIC_ROOT') or (BASE_DIR / 'staticfiles'))
 STORAGES = {
     "default": {
         "BACKEND": "django.core.files.storage.FileSystemStorage",

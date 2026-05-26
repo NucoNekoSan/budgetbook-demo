@@ -5,6 +5,7 @@ from . import views
 app_name = 'ledger'
 
 urlpatterns = [
+    path('setup/', views.first_run_setup, name='first_run_setup'),
     path('', views.dashboard, name='dashboard'),
     path('healthz', views.healthz, name='healthz'),
     path('metrics', views.metrics, name='metrics'),

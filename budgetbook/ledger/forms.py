@@ -4,6 +4,9 @@ from datetime import date
 from decimal import Decimal
 
 from django import forms
+from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 from django.urls import reverse_lazy
 
 from .models import (
@@ -22,6 +25,75 @@ from .models import (
     normalize_master_name,
 )
 
+class FirstRunSetupForm(forms.Form):
+    username = forms.CharField(
+        label='ログインID',
+        max_length=150,
+        widget=forms.TextInput(attrs={
+            'class': 'form-input',
+            'autocomplete': 'username',
+            'autofocus': True,
+            'required': True,
+            'enterkeyhint': 'next',
+        }),
+        help_text='この端末のBudgetBookにログインするためのIDです。',
+    )
+    display_name = forms.CharField(
+        label='表示名',
+        max_length=150,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-input',
+            'autocomplete': 'name',
+            'enterkeyhint': 'next',
+        }),
+        help_text='任意。画面表示用の名前です。',
+    )
+    password = forms.CharField(
+        label='パスワード',
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-input',
+            'autocomplete': 'new-password',
+            'required': True,
+            'enterkeyhint': 'done',
+        }),
+        help_text='8文字以上を推奨します。パスワードマネージャーの利用を推奨します。',
+    )
+    create_default_masters = forms.BooleanField(
+        label='標準カテゴリと基本口座を作成する',
+        required=False,
+        initial=True,
+        widget=forms.CheckboxInput(attrs={'class': 'checkbox-input'}),
+    )
+
+    def clean_username(self):
+        username = self.cleaned_data['username'].strip()
+        User = get_user_model()
+        if User.objects.filter(username=username).exists():
+            raise forms.ValidationError('このログインIDは既に使われています。')
+        return username
+
+    def clean_password(self):
+        password = self.cleaned_data['password']
+        try:
+            validate_password(password)
+        except ValidationError as exc:
+            raise forms.ValidationError(exc.messages)
+        return password
+
+    def save(self):
+        User = get_user_model()
+        user = User.objects.create_user(
+            username=self.cleaned_data['username'],
+            password=self.cleaned_data['password'],
+        )
+        display_name = self.cleaned_data.get('display_name', '').strip()
+        if display_name:
+            user.first_name = display_name
+        user.is_staff = True
+        user.is_superuser = True
+        user.save(update_fields=['first_name', 'is_staff', 'is_superuser'])
+        return user
 
 class DateInput(forms.DateInput):
     input_type = 'date'

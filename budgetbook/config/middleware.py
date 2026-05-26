@@ -5,7 +5,9 @@ import time
 from collections import deque
 
 from django.conf import settings
+from django.db.utils import OperationalError, ProgrammingError
 from django.http import HttpResponseForbidden, JsonResponse
+from django.shortcuts import redirect
 
 CSP_NONCE_PLACEHOLDER = '__CSP_NONCE__'
 
@@ -107,6 +109,37 @@ def demo_mode(request):
         'DEMO_ALLOW_WRITES': getattr(settings, 'DEMO_ALLOW_WRITES', False),
     }
 
+class FirstRunSetupMiddleware:
+    """Redirect desktop/local installs with no users to the first-run setup."""
+
+    _exempt_prefixes = (
+        '/setup/',
+        '/static/',
+        '/manifest.webmanifest',
+        '/sw.js',
+        '/offline',
+        '/healthz',
+    )
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if not getattr(settings, 'FIRST_RUN_SETUP_ENABLED', False):
+            return self.get_response(request)
+        if request.path.startswith(self._exempt_prefixes):
+            return self.get_response(request)
+
+        from django.contrib.auth import get_user_model
+
+        User = get_user_model()
+        try:
+            has_users = User.objects.exists()
+        except (OperationalError, ProgrammingError):
+            return self.get_response(request)
+        if not has_users:
+            return redirect('ledger:first_run_setup')
+        return self.get_response(request)
 
 _DEMO_USERNAME = 'demo'
 
