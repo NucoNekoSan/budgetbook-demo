@@ -68,3 +68,5 @@ Do not instruct users to disable SmartScreen, reputation-based protection, antiv
 If Windows blocks or warns on the file, users should verify the GitHub source and SHA256 checksum first. Users who do not understand the warning should not proceed.
 
 Reference: <https://support.microsoft.com/windows/app-browser-control-in-the-windows-security-app-8f68fb65-ebb4-3cfb-4bd7-ef0f376f3dc3>
+
+User install guide: [WINDOWS_UNSIGNED_INSTALL.md](WINDOWS_UNSIGNED_INSTALL.md)

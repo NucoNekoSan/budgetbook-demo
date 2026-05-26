@@ -78,6 +78,8 @@ Get-Content .\BudgetBook-Setup-0.1.0-Windows-x64.exe.sha256
 
 詳しい方針は [docs/UNSIGNED_SELF_RISK_DISTRIBUTION.md](docs/UNSIGNED_SELF_RISK_DISTRIBUTION.md) を参照してください。
 
+Windows版の具体的な導入手順は [docs/WINDOWS_UNSIGNED_INSTALL.md](docs/WINDOWS_UNSIGNED_INSTALL.md) を参照してください。
+
 ---
 
 ## 🏠 セルフホストで使う（推奨: Docker）

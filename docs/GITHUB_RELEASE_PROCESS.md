@@ -98,6 +98,7 @@ For an unsigned self-risk macOS release, build with `build-macos.sh` only and up
 - macOS may block the app because it is not Developer ID signed and notarized.
 - Verify SHA256 before opening the installer or DMG.
 - Do not install if the warning is unexpected or unacceptable.
+- Windows users should follow `docs/WINDOWS_UNSIGNED_INSTALL.md`.
 ```
 
 
