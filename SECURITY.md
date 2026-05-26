@@ -46,3 +46,11 @@ Public な GitHub Issue として脆弱性を報告すると、修正前に攻�
 - `--create-demo-users` を `DEMO_MODE=1` のときに指定した場合のみ、`admin` superuser が **ランダム生成パスワード** で作成されます（stdout に一度だけ表示。既存 `admin` は上書きしません）。
 - 本番運用では `python manage.py createsuperuser` で個別に superuser を作成してください。
 - `.env` の `SECRET_KEY` は `python -c "import secrets; print(secrets.token_urlsafe(64))"` 等で十分に長いランダム値を生成し、Git や OneDrive 同期下に置かないでください（`~/.budgetbook-secrets/.env` 推奨。詳細は `budgetbook/.env.example`）。
+
+## ダウンロード配付版の注意
+
+- 配付版は、公式 GitHub Releases 以外から取得しないでください。
+- 未署名・自己責任版では、Windows SmartScreen、ウイルス対策、macOS Gatekeeper 等の警告が出る場合があります。
+- 利用前に、Release に添付された SHA256 とダウンロードしたファイルのハッシュが一致することを確認してください。
+- 警告の意味が分からない場合、またはハッシュが一致しない場合はインストールしないでください。
+- OSの保護機能を全体的に無効化する手順は推奨しません。
