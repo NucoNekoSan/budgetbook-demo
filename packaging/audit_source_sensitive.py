@@ -81,7 +81,7 @@ def main() -> int:
             continue
         for pattern in patterns:
             if pattern.search(body):
-                failures.append(f'forbidden source content pattern {pattern.pattern!r}: {relative_path}')
+                failures.append(f'forbidden source content matched: {relative_path}')
 
     if failures:
         print('[source-audit] blocked:', file=sys.stderr)
