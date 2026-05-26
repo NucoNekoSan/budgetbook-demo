@@ -4,7 +4,7 @@ name: CodeQL
 # 結果は Security タブの "Code scanning alerts" に表示される。
 on:
   push:
-    branches: [master]
+    branches: ["**"]
   pull_request:
     branches: [master]
   schedule:

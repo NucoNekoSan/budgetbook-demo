@@ -3,7 +3,7 @@ name: Release Safety
 on:
   push:
     branches:
-      - master
+      - "**"
     tags:
       - "v*"
   pull_request:
