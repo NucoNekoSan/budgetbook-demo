@@ -3,7 +3,7 @@
 
 {% block title %}BudgetBook | 家計簿{% endblock %}
 {% block route %}dashboard{% endblock %}
-{% block extra_js %}<script nonce="{{ csp_nonce }}" src="{% static 'js/dashboard_chart.js' %}" defer></script>{% endblock %}
+{% block extra_js %}<script nonce="{{ csp_nonce }}" src="{% static 'js/dashboard_chart.js' %}?v={{ STATIC_VERSION }}" defer></script>{% endblock %}
 
 {% block content %}
   <div id="flash" class="flash" aria-live="polite" aria-atomic="true"></div>

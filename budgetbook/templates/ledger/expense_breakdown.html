@@ -4,7 +4,7 @@
 
 {% block title %}BudgetBook | 支出構成{% endblock %}
 {% block route %}expense_breakdown{% endblock %}
-{% block extra_js %}<script nonce="{{ csp_nonce }}" src="{% static 'js/expense_chart.js' %}?v=20260525-expense-audit" defer></script>{% endblock %}
+{% block extra_js %}<script nonce="{{ csp_nonce }}" src="{% static 'js/expense_chart.js' %}?v={{ STATIC_VERSION }}" defer></script>{% endblock %}
 
 {% block content %}
   <div class="annual-layout">

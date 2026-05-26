@@ -4,7 +4,7 @@
 
 {% block title %}BudgetBook | {{ year }}年 年間サマリー{% endblock %}
 {% block route %}annual{% endblock %}
-{% block extra_js %}<script nonce="{{ csp_nonce }}" src="{% static 'js/annual_chart.js' %}" defer></script>{% endblock %}
+{% block extra_js %}<script nonce="{{ csp_nonce }}" src="{% static 'js/annual_chart.js' %}?v={{ STATIC_VERSION }}" defer></script>{% endblock %}
 
 {% block content %}
   <div class="annual-layout">

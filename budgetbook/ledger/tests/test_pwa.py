@@ -142,6 +142,25 @@ class BaseHtmlPwaTagsTest(TestCase):
         body = resp.content.decode('utf-8')
         self.assertIn('/manifest.webmanifest', body)
 
+    def test_page_specific_chart_scripts_use_static_version(self):
+        routes_and_scripts = [
+            (reverse('ledger:dashboard'), 'dashboard_chart.js'),
+            (reverse('ledger:annual'), 'annual_chart.js'),
+            (reverse('ledger:expense_breakdown'), 'expense_chart.js'),
+        ]
+        for url, script_name in routes_and_scripts:
+            with self.subTest(script_name=script_name):
+                resp = self.client.get(url)
+                body = resp.content.decode('utf-8')
+                self.assertIn(f'{script_name}?v={settings.STATIC_VERSION}', body)
+
+    def test_login_theme_script_uses_static_version(self):
+        self.client.logout()
+        resp = self.client.get(reverse('login'))
+        self.assertEqual(resp.status_code, 200)
+        body = resp.content.decode('utf-8')
+        self.assertIn(f'theme_toggle.js?v={settings.STATIC_VERSION}', body)
+
 
 class IconsAvailableTest(TestCase):
     """生成済み PNG / SVG が staticfiles 経由で配信されることを確認。
