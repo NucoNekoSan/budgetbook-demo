@@ -30,3 +30,18 @@ Thumbs.db
 
 # Claude Code (harness) ローカル設定 — BudgetBook 本体とは無関係
 .claude/
+# Desktop packaging artifacts
+build/
+dist/
+release/
+*.spec
+
+# Signing credentials / private keys
+*.p12
+*.pfx
+*.pem
+*.key
+*.mobileprovision
+# Local private leak-detection patterns
+.sensitive-patterns.local
+sensitive-patterns.local
