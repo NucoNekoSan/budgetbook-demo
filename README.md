@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 ![Python 3.13+](https://img.shields.io/badge/Python-3.13%2B-blue)
 ![Django 5.2](https://img.shields.io/badge/Django-5.2-green)
-![Tests 545+ passing](https://img.shields.io/badge/Tests-545%2B%20passing-brightgreen)
+![Tests 593 passing](https://img.shields.io/badge/Tests-593%20passing-brightgreen)
 
 このリポジトリは **公開デモ / セルフホスト配布** 用です。実際のデータは含まれず、`seed_demo_data` コマンドで生成される **架空の 4 人家族家計** のみが入っています。
 
@@ -50,6 +50,35 @@
 静的スナップショットのソースは [budgetbook-demo-static](https://github.com/NucoNekoSan/budgetbook-demo-static) リポジトリ。`scripts/mirror.py` でローカル demo から再生成可能。
 
 デモは **読み取り専用** です。`DEMO_MODE=1` で `POST/PUT/PATCH/DELETE` がブロックされ、画面は全閲覧可。
+
+---
+
+## 💻 ダウンロード版で使う（Docker不要）
+
+Windows / macOS 向けのダウンロード配付版は [GitHub Releases](https://github.com/NucoNekoSan/budgetbook-demo/releases) から提供します。
+
+配付版は **空のローカルアプリ** として起動します。実データ、デモデータ、ユーザー、`.env`、データベースは同梱されません。初回起動時に利用者自身のPC上で管理者ユーザーを作成し、データもローカルに作成されます。
+
+### 未署名・自己責任版について
+
+無料公開版は、コード署名証明書を用意できるまで **未署名・自己責任版** として配付する場合があります。
+
+- Windows では「発行元不明」や SmartScreen / ウイルス対策ソフトの警告が出る場合があります
+- macOS では Developer ID 署名・notarization がないため Gatekeeper にブロックされる場合があります
+- 必ず公式 GitHub Release から取得し、添付の SHA256 と一致することを確認してください
+- 警告の意味が分からない場合、または不安がある場合はインストールしないでください
+- SmartScreen、ウイルス対策、Gatekeeper 等のOS保護機能を全体的に無効化することは推奨しません
+
+Windows でのSHA256確認例:
+
+```powershell
+Get-FileHash .\BudgetBook-Setup-0.1.0-Windows-x64.exe -Algorithm SHA256
+Get-Content .\BudgetBook-Setup-0.1.0-Windows-x64.exe.sha256
+```
+
+詳しい方針は [docs/UNSIGNED_SELF_RISK_DISTRIBUTION.md](docs/UNSIGNED_SELF_RISK_DISTRIBUTION.md) を参照してください。
+
+Windows版の具体的な導入手順は [docs/WINDOWS_UNSIGNED_INSTALL.md](docs/WINDOWS_UNSIGNED_INSTALL.md) を参照してください。
 
 ---
 
@@ -143,7 +172,7 @@ powershell -ExecutionPolicy Bypass -File scripts/backup_budgetbook.ps1
 | Auth | Django auth + `django-axes` |
 | Web Server | Gunicorn + Nginx (Docker) / WhiteNoise (静的配信) |
 | PWA | Service Worker + Web App Manifest |
-| Test | Django TestCase (500 件、全 pass) |
+| Test | Django TestCase (593 件、全 pass) |
 | CI | GitHub Actions |
 
 詳細な設計判断は [docs/TECH_SPEC.md](docs/TECH_SPEC.md) と [docs/DEVELOPMENT_WALKTHROUGH.md](docs/DEVELOPMENT_WALKTHROUGH.md) を参照。

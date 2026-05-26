@@ -8,13 +8,13 @@ BudgetBook uses PyInstaller for the app folder and Inno Setup 6 for the user-fac
 - Python environment already used by this repository
 - Inno Setup 6 (`ISCC.exe`) installed locally
 
-## Unsigned local validation build
+## Unsigned build
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File packaging\windows\build-installer.ps1 -Version 0.1.0
 ```
 
-Unsigned installers are for local validation only. Do not publish them for general users.
+Unsigned installers may be used for local validation. They may also be published only as free unsigned self-risk releases when the GitHub Release clearly labels the artifact as unsigned, includes SHA256 verification, and does not instruct users to disable Windows security protections.
 
 If `ISCC.exe` is not on `PATH`:
 
@@ -22,7 +22,7 @@ If `ISCC.exe` is not on `PATH`:
 powershell -ExecutionPolicy Bypass -File packaging\windows\build-installer.ps1 -Version 0.1.0 -ISCCPath "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
 ```
 
-## Signed public build
+## Signed trusted build
 
 Install the Windows SDK, import an Authenticode code-signing certificate into the current user's certificate store, then set its SHA-1 thumbprint outside Git:
 
@@ -44,3 +44,4 @@ The script signs and verifies the installer with `signtool.exe`. Do not commit P
 - Installer does not bundle `.env`, `db.sqlite3`, backups, or signing keys.
 - User data remains under `%APPDATA%\BudgetBook` when uninstalling.
 - Release artifacts are scanned by `packaging/audit_release.py` before publishing.
+- Unsigned self-risk releases must follow `docs/UNSIGNED_SELF_RISK_DISTRIBUTION.md`.

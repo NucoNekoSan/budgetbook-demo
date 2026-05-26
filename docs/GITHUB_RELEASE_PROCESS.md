@@ -10,7 +10,7 @@ This project must publish desktop installers as release assets, not as Git-track
 
 ## Pre-release checklist
 
-Run the release preflight before creating a public GitHub release:
+Run the release preflight before creating a GitHub release:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File packaging\prepare-release.ps1 -Version 0.1.0
@@ -28,6 +28,15 @@ On macOS/Linux validation machines:
 bash packaging/prepare-release.sh --version 0.1.0
 ```
 
+## Distribution tracks
+
+BudgetBook has two release tracks:
+
+- Trusted release: Windows installer is Authenticode-signed; macOS DMG is Developer ID signed, notarized, and stapled.
+- Unsigned self-risk release: artifacts may be published for free distribution only with explicit unsigned warnings, SHA256 verification instructions, and no advice to disable OS security globally. Follow `docs/UNSIGNED_SELF_RISK_DISTRIBUTION.md`.
+
+Keep unsigned self-risk releases as GitHub prereleases unless the maintainer intentionally promotes that build to the latest public release.
+
 ## Windows release
 
 Build on Windows for local validation:
@@ -36,7 +45,7 @@ Build on Windows for local validation:
 powershell -ExecutionPolicy Bypass -File packaging\windows\build-installer.ps1 -Version 0.1.0
 ```
 
-For a public release, sign the installer before upload:
+For a trusted public release, sign the installer before upload:
 
 ```powershell
 $env:WINDOWS_SIGN_CERT_SHA1="CERTIFICATE_THUMBPRINT"
@@ -45,7 +54,7 @@ powershell -ExecutionPolicy Bypass -File packaging\windows\build-installer.ps1 -
 
 Upload these files from `release/windows/` to a draft GitHub Release:
 
-- `BudgetBook-Setup-0.1.0-Windows-x64.exe` (signed)
+- `BudgetBook-Setup-0.1.0-Windows-x64.exe` (signed for trusted releases, unsigned only for self-risk releases)
 - `BudgetBook-Setup-0.1.0-Windows-x64.exe.sha256`
 - `BudgetBook-0.1.0-Windows-x64.manifest.json`
 
@@ -66,7 +75,7 @@ Upload these files from `release/macos/` to a draft GitHub Release:
 - `BudgetBook-0.1.0-macOS-signed.dmg.sha256`
 - `BudgetBook-0.1.0-macOS-signed.manifest.json`
 
-Do not publish unsigned Windows installers or unsigned macOS DMGs for general users.
+For an unsigned self-risk macOS release, build with `build-macos.sh` only and upload `BudgetBook-0.1.0-macOS.dmg`, its `.sha256`, and its manifest. The release notes must state that the DMG is unsigned and unnotarized.
 
 ## Release notes template
 
@@ -74,14 +83,22 @@ Do not publish unsigned Windows installers or unsigned macOS DMGs for general us
 ## BudgetBook 0.1.0
 
 ### Installers
-- Windows: `BudgetBook-Setup-0.1.0-Windows-x64.exe` (signed)
-- macOS: `BudgetBook-0.1.0-macOS-signed.dmg`
+- Windows: `BudgetBook-Setup-0.1.0-Windows-x64.exe` (signed, or unsigned self-risk if explicitly labeled)
+- macOS: `BudgetBook-0.1.0-macOS-signed.dmg` (signed/notarized, or unsigned self-risk if explicitly labeled)
 
 ### Security
 - Ships with no users, household data, `.env`, or database.
 - Creates runtime data under the user's app data folder on first launch.
 - Local server binds to `127.0.0.1` only.
 - SHA256 checksums and JSON manifests are attached.
+
+### Unsigned self-risk warning
+- This section is required when any attached artifact is unsigned or unnotarized.
+- Windows may show Unknown Publisher, SmartScreen, or antivirus warnings.
+- macOS may block the app because it is not Developer ID signed and notarized.
+- Verify SHA256 before opening the installer or DMG.
+- Do not install if the warning is unexpected or unacceptable.
+- Windows users should follow `docs/WINDOWS_UNSIGNED_INSTALL.md`.
 ```
 
 
@@ -104,7 +121,7 @@ Enable these repository settings before public distribution:
 - Dependabot alerts and security updates.
 - Code scanning alerts from CodeQL.
 - Branch protection requiring CI and release-safety checks before merging to `master`.
-- Draft releases until both Windows and macOS artifacts are attached and verified.
+- Draft releases until intended Windows and/or macOS artifacts are attached, checksums are verified, and the release track is clearly labeled.
 
 ## Artifact verification
 
