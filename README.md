@@ -43,13 +43,13 @@
 
 ## 🌐 オンラインデモ
 
-👉 **ライブデモ (静的スナップショット)**: https://budgetbook-demo-static.nuconekosan.workers.dev/
+👉 **体験デモ**: https://budgetbook-demo.nuconeko-garden.com/
 
-セキュリティ最優先のため、**Cloudflare Pages 配信の静的 HTML スナップショット**として公開しています。Django ランタイムを公開せず攻撃面ゼロ、24/7 稼働、cold start なし。動的版を実際に動かしたい場合は本リポジトリを `git clone` して `start-windows.bat` で起動してください (3 分で完全動作)。
+公開版は **Cloudflare Workersの静的アセット配信**です。架空データで取引・振替・予算を変更すると、収支・残高・予算集計が更新されます。変更はsessionStorageによるタブ内の一時保存で、公開環境にDjango・DBを置かず、サーバーへの書き込みもありません。医療・保険・税務、締め・照合などは初期サンプルの閲覧専用です。動的版は本リポジトリを `git clone` して `start-windows.bat` で起動できます。
 
 静的スナップショットのソースは [budgetbook-demo-static](https://github.com/NucoNekoSan/budgetbook-demo-static) リポジトリ。`scripts/mirror.py` でローカル demo から再生成可能。
 
-デモは **読み取り専用** です。`DEMO_MODE=1` で `POST/PUT/PATCH/DELETE` がブロックされ、画面は全閲覧可。
+本体Djangoを `DEMO_MODE=1` で起動した場合は、`POST/PUT/PATCH/DELETE` をブロックする読み取り専用モードです。公開サイトのタブ内編集は [静的デモの別リポジトリ](https://github.com/NucoNekoSan/budgetbook-demo-static) で実装しています。
 
 ---
 
