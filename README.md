@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 ![Python 3.13+](https://img.shields.io/badge/Python-3.13%2B-blue)
 ![Django 5.2](https://img.shields.io/badge/Django-5.2-green)
-![Tests 545+ passing](https://img.shields.io/badge/Tests-545%2B%20passing-brightgreen)
+
 
 このリポジトリは **公開デモ / セルフホスト配布** 用です。実際のデータは含まれず、`seed_demo_data` コマンドで生成される **架空の 4 人家族家計** のみが入っています。
 
@@ -43,7 +43,8 @@
 
 ## 🌐 オンラインデモ
 
-👉 **体験デモ**: https://budgetbook-demo.nuconeko-garden.com/
+👉 **体験デモ**: https://budgetbook-demo.nuconeko-garden.com/  
+作品の概要は[ぬこねこの庭のWorks](https://nuconeko-garden.com/works/)にも掲載しています。
 
 公開版は **Cloudflare Workersの静的アセット配信**です。架空データで取引・振替・予算を変更すると、収支・残高・予算集計が更新されます。変更はsessionStorageによるタブ内の一時保存で、公開環境にDjango・DBを置かず、サーバーへの書き込みもありません。医療・保険・税務、締め・照合などは初期サンプルの閲覧専用です。動的版は本リポジトリを `git clone` して `start-windows.bat` で起動できます。
 
@@ -143,7 +144,7 @@ powershell -ExecutionPolicy Bypass -File scripts/backup_budgetbook.ps1
 | Auth | Django auth + `django-axes` |
 | Web Server | Gunicorn + Nginx (Docker) / WhiteNoise (静的配信) |
 | PWA | Service Worker + Web App Manifest |
-| Test | Django TestCase (500 件、全 pass) |
+| Test | Django TestCase（継続的に検証） |
 | CI | GitHub Actions |
 
 詳細な設計判断は [docs/TECH_SPEC.md](docs/TECH_SPEC.md) と [docs/DEVELOPMENT_WALKTHROUGH.md](docs/DEVELOPMENT_WALKTHROUGH.md) を参照。
